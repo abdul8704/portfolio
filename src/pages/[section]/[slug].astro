@@ -1,0 +1,10 @@
+---
+import DetailPage from '../../components/DetailPage.astro';
+import { getBySlug } from '../../lib/store.js';
+
+const TYPES = { projects: 'project', achievements: 'achievement', certifications: 'certification' };
+const type = TYPES[Astro.params.section];
+const item = type ? getBySlug(type, Astro.params.slug, { drafts: !!Astro.locals.owner }) : null;
+if (!item) return Astro.rewrite('/404');
+---
+<DetailPage type={type} item={item} />

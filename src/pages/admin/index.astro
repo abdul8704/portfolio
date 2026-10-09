@@ -1,0 +1,84 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import { ENTITIES } from '../../lib/entities.js';
+import { counts, findPlaceholders, getProfile, listItems, recentItems } from '../../lib/store.js';
+import { SITE_URL } from '../../lib/config.js';
+import { fmtDate } from '../../lib/seo.js';
+
+export const prerender = false;
+const c = counts();
+const profile = getProfile();
+const placeholders = findPlaceholders();
+const projects = listItems('project', { drafts: true });
+const missingThumbs = projects.filter((p) => !p.image).length;
+const recent = recentItems(6);
+const checklist = [
+  { done: !!(SITE_URL || profile.siteUrl), text: 'Set your public site URL (canonical links, sitemap)', href: '/admin/profile#f-siteUrl' },
+  { done: placeholders.length === 0, text: `Replace placeholder text${placeholders.length ? ` (${placeholders.length} item${placeholders.length > 1 ? 's' : ''} left)` : ''}`, href: placeholders[0] ? `/admin/${placeholders[0].type}/${placeholders[0].id}` : '/admin' },
+  { done: !!profile.email, text: 'Add a public contact email', href: '/admin/profile#f-email' },
+  { done: !!profile.ogImage, text: 'Upload a default share image for link previews', href: '/admin/profile#f-ogImage' },
+  { done: projects.length > 0 && missingThumbs === 0, text: `Add thumbnails to every project${missingThumbs ? ` (${missingThumbs} missing)` : ''}`, href: '/admin/project' },
+  { done: !!profile.location, text: 'Add your location (helps search and AI answers)', href: '/admin/profile#f-location' },
+];
+const remaining = checklist.filter((x) => !x.done).length;
+const types = ['project', 'achievement', 'certification', 'timeline', 'skill', 'post'];
+---
+<Admin title="Dashboard" active="dash">
+  <div class="a-head">
+    <div><h1>Dashboard</h1><p>Everything on your public site is edited here. Changes go live immediately when an item is published.</p></div>
+    <div style="display:flex;gap:var(--s-2);flex-wrap:wrap">
+      <a class="a-btn primary" href="/admin/post/new"><Icon name="plus" />Write a post</a>
+      <a class="a-btn" href="/admin/project/new"><Icon name="plus" />Add a project</a>
+    </div>
+  </div>
+
+  <div class="grid-tiles">
+    {types.map((t) => (
+      <a class="tile" href={`/admin/${t}`}>
+        <span>{ENTITIES[t].plural}</span>
+        <b>{c[t].total}</b>
+        <span>{c[t].drafts ? `${c[t].drafts} draft${c[t].drafts > 1 ? 's' : ''}` : 'all published'}</span>
+      </a>
+    ))}
+  </div>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="setup-h">
+      <h2 id="setup-h">{remaining ? `Finish setting up (${remaining} left)` : 'Setup complete'}</h2>
+      <ul class="checklist">
+        {checklist.map((x) => (
+          <li class:list={[x.done && 'done']}>
+            <Icon name={x.done ? 'check' : 'alert'} />
+            <a href={x.href}>{x.text}</a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section class="panel" aria-labelledby="recent-h">
+      <h2 id="recent-h">Recently edited</h2>
+      {recent.length === 0 ? <p class="muted">Nothing yet.</p> : (
+        <ul class="plain-list">
+          {recent.map((r) => (
+            <li>
+              <a href={`/admin/${r.type}/${r.id}`}>{r[ENTITIES[r.type].titleField]}</a>
+              <span class="muted">{ENTITIES[r.type].label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+    {placeholders.length > 0 && (
+      <section class="panel" aria-labelledby="ph-h">
+        <h2 id="ph-h">Still has placeholder text</h2>
+        <p class="help" style="margin-bottom:var(--s-3)">Anything in [square brackets] is sample text. Replace it before sharing the site.</p>
+        <ul class="plain-list">
+          {placeholders.slice(0, 8).map((p) => (
+            <li><a href={`/admin/${p.type}/${p.id}`}>{p.title}</a><span class="muted">{ENTITIES[p.type].label}</span></li>
+          ))}
+        </ul>
+        {placeholders.length > 8 && <p class="help" style="margin-top:var(--s-2)">and {placeholders.length - 8} more</p>}
+      </section>
+    )}
+  </div>
+</Admin>

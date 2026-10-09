@@ -1,0 +1,16 @@
+---
+import Thumb from './Thumb.astro';
+const { href, title, kind = '', meta = '', desc = '', result = '', tags = [], image = '', alt = '', transitionName = '' } = Astro.props;
+---
+<li class="card dim-item" data-reveal data-card data-cursor-label="View">
+  <div class="thumb" style={transitionName ? `view-transition-name: ${transitionName}` : undefined}>
+    <div class="thumb-in"><Thumb src={image} alt={alt} label={title} /></div>
+  </div>
+  <div class="card-body">
+    <p class="card-kicker">{kind && <span class="kind">{kind}</span>}{meta}</p>
+    <h3><a href={href}>{title}</a> <span class="arrow" aria-hidden="true">↗</span></h3>
+    {desc && <p>{desc}</p>}
+    {result && <p class="result">{result}</p>}
+    {tags.length > 0 && <div class="tags">{tags.map((t) => <span class="tag">{t}</span>)}</div>}
+  </div>
+</li>

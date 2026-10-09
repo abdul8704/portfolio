@@ -1,0 +1,63 @@
+---
+import { small } from '../lib/seo.js';
+import DevAvatar from './DevAvatar.astro';
+const { profile, skills, nav } = Astro.props;
+// The three hero links: GitHub, LinkedIn, Résumé. Other links stay in the rail footer.
+const socials = profile.socials || [];
+const pick = (re) => socials.find((s) => re.test(s.label) || re.test(s.href));
+const github = pick(/github/i);
+const linkedin = pick(/linkedin/i);
+const heroLinks = [
+  github && { label: 'GitHub', href: github.href },
+  linkedin && { label: 'LinkedIn', href: linkedin.href },
+  profile.resume && { label: 'Résumé', href: profile.resume },
+].filter(Boolean);
+const otherSocials = socials.filter((s) => s !== github && s !== linkedin);
+const ext = (href) => (href.startsWith('http') ? { target: '_blank', rel: 'me noopener' } : {});
+---
+<header class="rail" data-rail>
+  <div class="rail-main">
+    <div class="identity" data-identity>
+      {profile.photo ? (
+        <img class="avatar" data-morph="avatar" src={small(profile.photo)} srcset={`${small(profile.photo)} 640w, ${profile.photo} 1600w`} sizes="(min-width: 901px) 280px, 200px"
+          alt={profile.photoAlt || profile.name} width="112" height="112" loading="eager" decoding="async" />
+      ) : profile.avatarFallback !== false && (
+        <div class="avatar-wrap" data-morph="avatar"><DevAvatar /></div>
+      )}
+      <h1 class="name" data-morph="name">{profile.name}</h1>
+      <p class="role" data-morph="role">{profile.role}</p>
+      <p class="summary" data-morph="summary">{profile.summary}</p>
+      {heroLinks.length > 0 && (
+        <ul class="id-links" data-morph="links" aria-label="Profiles">
+          {heroLinks.map((l) => <li><a href={l.href} {...ext(l.href)} data-magnetic>{l.label}<span aria-hidden="true">↗</span></a></li>)}
+        </ul>
+      )}
+    </div>
+    <div class="rail-rest" data-rail-rest>
+      <nav class="nav" aria-label="Sections">
+        {nav.map(([label, href, spy]) => <a href={href} data-spy={spy ? '' : undefined} data-magnetic>{label}</a>)}
+      </nav>
+      {skills.length > 0 && (
+        <section class="stack" aria-labelledby="core-stack">
+          <h2 id="core-stack">Core stack</h2>
+          <dl>
+            {skills.map((g) => (
+              <>
+                <dt>{g.group}</dt>
+                <dd>{g.items.map((i) => <span>{i}</span>)}</dd>
+              </>
+            ))}
+          </dl>
+        </section>
+      )}
+    </div>
+  </div>
+  {(otherSocials.length > 0 || profile.email) && (
+    <div class="rail-foot" data-rail-rest>
+      <div class="socials">
+        {otherSocials.map((s) => <a href={s.href} {...ext(s.href)}>{s.label}</a>)}
+        {profile.email && <a href={`mailto:${profile.email}`}>Email</a>}
+      </div>
+    </div>
+  )}
+</header>

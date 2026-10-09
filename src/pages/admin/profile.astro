@@ -1,0 +1,55 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import Field from '../../components/admin/Field.astro';
+import { PROFILE_FIELDS, coerce } from '../../lib/entities.js';
+import { getProfile, saveProfile, listMedia } from '../../lib/store.js';
+import { flash } from '../../lib/http.js';
+
+export const prerender = false;
+let values = getProfile();
+let errors = {};
+let hasErrors = false;
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const { data, errors: errs } = coerce(PROFILE_FIELDS, form);
+  if (!Object.keys(errs).length) {
+    saveProfile(data);
+    flash(Astro, 'ok', 'Site settings saved.');
+    return Astro.redirect('/admin/profile', 303);
+  }
+  errors = errs; hasErrors = true;
+  values = Object.fromEntries(PROFILE_FIELDS.map((f) => [f.key, f.type === 'checkbox' ? form.get(f.key) === 'on' : String(form.get(f.key) ?? '')]));
+  Astro.response.status = 422;
+}
+const justSaved = Astro.cookies.get('flash')?.value?.includes('"ok"');
+const groups = [];
+for (const f of PROFILE_FIELDS) {
+  let g = groups.find((x) => x.name === f.group);
+  if (!g) groups.push((g = { name: f.group, fields: [] }));
+  g.fields.push(f);
+}
+const errList = PROFILE_FIELDS.filter((f) => errors[f.key]);
+---
+<Admin title="Intro & SEO" active="profile" media={listMedia()}>
+  <div class="a-head"><div><h1>Intro &amp; SEO</h1><p>Your name, intro text, links and how the site appears in search results and link previews.</p></div></div>
+  <div id="restore" class="alert warn restore" role="status"><Icon name="alert" /><div style="flex:1"><strong>You have unsaved changes from earlier.</strong></div><button type="button" class="a-btn sm" data-restore>Restore</button><button type="button" class="a-btn sm ghost" data-discard>Discard</button></div>
+  {errList.length > 0 && (
+    <div class="alert err" role="alert"><Icon name="alert" /><div><strong>{errList.length} thing{errList.length > 1 ? 's' : ''} need fixing</strong>
+      <ul>{errList.map((f) => <li><a href={`#f-${f.key}`} style="text-decoration:underline">{errors[f.key]}</a></li>)}</ul></div></div>
+  )}
+  <form method="post" data-editor data-saved={justSaved ? '1' : undefined} data-has-errors={hasErrors ? '1' : undefined} class="form-main" style="max-width:760px" novalidate>
+    <input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} />
+    {groups.map((g) => (
+      <fieldset class="panel">
+        <legend>{g.name}</legend>
+        {g.fields.map((f) => <Field field={f} value={values[f.key]} error={errors[f.key]} library={true} />)}
+      </fieldset>
+    ))}
+    <div class="save-bar">
+      <button type="submit" class="a-btn primary" data-save>Save changes</button>
+      <span class="state" data-state aria-live="polite">All changes saved</span>
+      <span class="muted" style="font-size:var(--text-caption)"><kbd>Ctrl</kbd> + <kbd>S</kbd> to save</span>
+    </div>
+  </form>
+</Admin>

@@ -1,0 +1,132 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/admin/Icon.astro';
+import Field from '../../../components/admin/Field.astro';
+import { ENTITIES, coerce, slugify } from '../../../lib/entities.js';
+import { getItem, saveItem, listMedia } from '../../../lib/store.js';
+import { flash } from '../../../lib/http.js';
+import { legacyMonths } from '../../../lib/timeline.js';
+
+export const prerender = false;
+const { type, id } = Astro.params;
+const cfg = ENTITIES[type];
+if (!cfg) return Astro.rewrite('/404');
+const isNew = id === 'new';
+const item = isNew ? null : getItem(type, id);
+if (!isNew && (!item || item.deletedAt)) return Astro.rewrite('/404');
+
+const today = new Date().toISOString().slice(0, 10);
+let values = item ?? {
+  published: type !== 'post',
+  slug: '',
+  ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.key === 'date' ? today : f.type === 'select' ? f.options[0] : ''])),
+};
+// entries saved before start/end existed: pre-fill the months from the old period text
+if (type === 'timeline' && item) values = { ...values, ...legacyMonths(item) };
+let errors = {};
+let slugValue = item?.slug ?? '';
+let hasErrors = false;
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const { data, errors: errs } = coerce(cfg.fields, form);
+  const published = form.get('published') === 'on';
+  slugValue = String(form.get('slug') || '').trim();
+  if (Object.keys(errs).length === 0) {
+    const newId = saveItem(type, isNew ? null : id, { data, published, slug: slugValue });
+    flash(Astro, 'ok', isNew ? `${cfg.label} created.` : 'Changes saved.');
+    return Astro.redirect(`/admin/${type}/${newId}`, 303);
+  }
+  errors = errs;
+  hasErrors = true;
+  // keep exactly what was typed so nothing is lost
+  values = { published, ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.type === 'checkbox' ? form.get(f.key) === 'on' : String(form.get(f.key) ?? '')])) };
+  Astro.response.status = 422;
+}
+
+const justSaved = Astro.cookies.get('flash')?.value?.includes('"ok"');
+const media = listMedia();
+const title = isNew ? `New ${cfg.label.toLowerCase()}` : item[cfg.titleField];
+const groups = [];
+for (const f of cfg.fields) {
+  let g = groups.find((x) => x.name === f.group);
+  if (!g) groups.push((g = { name: f.group, fields: [] }));
+  g.fields.push(f);
+}
+const csrf = Astro.locals.owner.csrf;
+const errList = cfg.fields.filter((f) => errors[f.key]);
+const livePath = !isNew && cfg.base ? `${cfg.base}/${item.slug}` : null;
+const upd = item ? new Date(item.updatedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+---
+<Admin title={title} active={type} media={media}>
+  <a class="a-crumb" href={`/admin/${type}`}>← {cfg.plural}</a>
+  <div class="a-head">
+    <div><h1>{title}</h1>{isNew && <p>{cfg.help}</p>}</div>
+  </div>
+
+  <div id="restore" class="alert warn restore" role="status">
+    <Icon name="alert" />
+    <div style="flex:1"><strong>You have unsaved changes from earlier.</strong><p class="help">They were kept in this browser.</p></div>
+    <button type="button" class="a-btn sm" data-restore>Restore</button>
+    <button type="button" class="a-btn sm ghost" data-discard>Discard</button>
+  </div>
+
+  {errList.length > 0 && (
+    <div class="alert err" role="alert">
+      <Icon name="alert" />
+      <div><strong>{errList.length === 1 ? 'One thing needs fixing' : `${errList.length} things need fixing`}</strong>
+        <ul>{errList.map((f) => <li><a href={`#f-${f.key}`} style="text-decoration:underline">{errors[f.key]}</a></li>)}</ul></div>
+    </div>
+  )}
+
+  <div class="form-grid">
+    <form method="post" id="editor" data-editor data-saved={justSaved ? '1' : undefined} data-has-errors={hasErrors ? '1' : undefined} class="form-main" novalidate>
+      <input type="hidden" name="_csrf" value={csrf} />
+      {groups.map((g) => (
+        <fieldset class="panel">
+          <legend>{g.name}</legend>
+          {g.fields.map((f) => <Field field={f} value={values[f.key]} error={errors[f.key]} library={true} />)}
+        </fieldset>
+      ))}
+      <div class="save-bar">
+        <button type="submit" class="a-btn primary" data-save>{isNew ? `Create ${cfg.label.toLowerCase()}` : 'Save changes'}</button>
+        <a class="a-btn" href={`/admin/${type}`}>Cancel</a>
+        <span class="state" data-state aria-live="polite">{isNew ? 'Not saved yet' : 'All changes saved'}</span>
+        <span class="muted" style="font-size:var(--text-caption)"><kbd>Ctrl</kbd> + <kbd>S</kbd> to save</span>
+      </div>
+    </form>
+
+    <aside class="form-aside" aria-label="Publishing">
+      <div class="panel">
+        <h2>Visibility</h2>
+        <label class="check">
+          <input type="checkbox" name="published" form="editor" checked={values.published === true || values.published === 'on'} />
+          <span><strong>Published</strong><span class="help" style="display:block">Unticked items are drafts only you can see.</span></span>
+        </label>
+        {cfg.detail && (
+          <div class="field" style="margin-top:var(--s-3)">
+            <label for="f-slug">Page address</label>
+            <input type="text" id="f-slug" name="slug" form="editor" value={slugValue} placeholder="generated from the title" autocomplete="off" aria-describedby="slug-help" />
+            <p class="help" id="slug-help">{cfg.base}/{slugValue || '…'} · Changing this breaks existing links.</p>
+          </div>
+        )}
+        {livePath && (
+          <p style="margin-top:var(--s-4)"><a class="a-btn" style="width:100%" href={livePath} target="_blank" rel="noopener"><Icon name="external" />{item.published ? 'View on site' : 'Preview draft'}</a></p>
+        )}
+        {item && <p class="help" style="margin-top:var(--s-3)">Last saved {upd}</p>}
+      </div>
+      {item && (
+        <div class="panel">
+          <h2>More</h2>
+          <div style="display:flex;flex-direction:column;gap:var(--s-2)">
+            <form method="post" action="/admin/api/duplicate"><input type="hidden" name="_csrf" value={csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={item.id} /><input type="hidden" name="_back" value={`/admin/${type}`} />
+              <button class="a-btn" style="width:100%"><Icon name="copy" />Duplicate as draft</button></form>
+            <form method="post" action="/admin/api/trash" data-confirm={`“${title}” will be removed from your site. You can restore it from the trash for 30 days.`} data-confirm-title={`Move this ${cfg.label.toLowerCase()} to trash?`} data-confirm-label="Move to trash">
+              <input type="hidden" name="_csrf" value={csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={item.id} /><input type="hidden" name="_back" value={`/admin/${type}`} />
+              <button class="a-btn danger" style="width:100%"><Icon name="trash" />Move to trash</button></form>
+          </div>
+        </div>
+      )}
+    </aside>
+  </div>
+</Admin>

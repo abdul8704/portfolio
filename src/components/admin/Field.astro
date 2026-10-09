@@ -1,0 +1,86 @@
+---
+import Icon from './Icon.astro';
+const { field: f, value, error, library = false } = Astro.props;
+const id = `f-${f.key}`;
+const show = (v) => {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'boolean') return v ? 'on' : '';
+  switch (f.type) {
+    case 'lines': return v.join('\n');
+    case 'paras': return v.join('\n\n');
+    case 'csv': return v.join(', ');
+    case 'pairs': return v.map((p) => `${p.label} | ${p.href}`).join('\n');
+    default: return String(v);
+  }
+};
+const val = show(value);
+const describedby = [f.help && `${id}-help`, error && `${id}-err`].filter(Boolean).join(' ') || undefined;
+const rows = f.rows ?? (f.type === 'paras' ? 8 : f.type === 'lines' || f.type === 'pairs' ? 5 : 4);
+const inputType = { email: 'email', url: 'url', date: 'date', month: 'month' }[f.type] || 'text';
+const placeholder = { month: 'YYYY-MM', url: 'https://', pairs: 'GitHub | https://github.com/you', csv: 'one, two, three' }[f.type];
+---
+<div class="field">
+  {f.type === 'checkbox' ? (
+    <label class="check">
+      <input type="checkbox" id={id} name={f.key} checked={value === true || value === 'on'} aria-describedby={describedby} />
+      <span><strong>{f.label}</strong>{f.help && <span class="help" id={`${id}-help`} style="display:block">{f.help}</span>}</span>
+    </label>
+  ) : (
+    <>
+      <label for={f.type === 'image' ? undefined : id} id={`${id}-label`}>
+        <span>{f.label}</span>{!f.required && <span class="opt">optional</span>}
+      </label>
+
+      {f.type === 'textarea' || f.type === 'lines' || f.type === 'paras' || f.type === 'pairs' ? (
+        <textarea id={id} name={f.key} rows={rows} maxlength={f.type === 'textarea' ? (f.max ?? 2000) : undefined} placeholder={placeholder} aria-invalid={error ? 'true' : undefined} aria-describedby={describedby} required={f.required}>{val}</textarea>
+      ) : f.type === 'select' ? (
+        <select id={id} name={f.key} aria-invalid={error ? 'true' : undefined} aria-describedby={describedby} required={f.required}>
+          {!f.required && <option value="">None</option>}
+          {f.options.map((o, i) => <option value={o} selected={val === o}>{f.optionLabels?.[i] ?? o}</option>)}
+        </select>
+      ) : f.type === 'image' ? (
+        <div class="img-field" data-image-field role="group" aria-labelledby={`${id}-label`}>
+          <div class="img-prev" aria-hidden="true">{val ? <img src={val.replace(/\.webp$/, '-sm.webp')} alt="" width="320" height="200" /> : 'No image'}</div>
+          <div>
+            <input type="hidden" id={id} name={f.key} value={val} />
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden tabindex="-1" aria-label="Upload an image" />
+            <div class="img-actions">
+              <button type="button" class="a-btn" data-upload data-no-loading><Icon name="plus" />Upload image</button>
+              {library && <button type="button" class="a-btn" data-library>Choose from library</button>}
+              <button type="button" class="a-btn ghost" data-remove hidden={!val}>Remove</button>
+            </div>
+            <p class="help" style="margin-top:var(--s-2)">JPG, PNG, WebP, GIF or AVIF up to 8 MB. Resized and optimised automatically.</p>
+          </div>
+        </div>
+      ) : f.type === 'markdown' ? (
+        <div class="md-box" data-md>
+          <div class="md-bar">
+            <button type="button" data-mode="write" aria-pressed="true">Write</button>
+            <button type="button" data-mode="preview" aria-pressed="false">Preview</button>
+            <span class="sp"></span>
+            <span class="md-tools" style="display:flex;flex-wrap:wrap;gap:2px">
+              <button type="button" data-act="h2" title="Heading">H2</button>
+              <button type="button" data-act="bold" title="Bold"><b>B</b></button>
+              <button type="button" data-act="italic" title="Italic"><i>I</i></button>
+              <button type="button" data-act="code" title="Inline code">Code</button>
+              <button type="button" data-act="block" title="Code block">Block</button>
+              <button type="button" data-act="link" title="Link">Link</button>
+              <button type="button" data-act="list" title="List">List</button>
+              <button type="button" data-act="quote" title="Quote">Quote</button>
+              <button type="button" data-insert-image title="Upload and insert image"><Icon name="image" />Image</button>
+              {library && <button type="button" data-insert-library title="Insert from library">Library</button>}
+            </span>
+          </div>
+          <textarea id={id} name={f.key} spellcheck="true" aria-invalid={error ? 'true' : undefined} aria-describedby={describedby} required={f.required}>{val}</textarea>
+          <div class="md-preview" hidden aria-live="polite"></div>
+          <div class="md-foot"><span data-count></span><span>Markdown · paste or drop images to upload</span></div>
+        </div>
+      ) : (
+        <input type={inputType} id={id} name={f.key} value={val} maxlength={f.max ?? 300} placeholder={placeholder} aria-invalid={error ? 'true' : undefined} aria-describedby={describedby} required={f.required} autocomplete="off" />
+      )}
+      {f.help && <p class="help" id={`${id}-help`}>{f.help}</p>}
+    </>
+  )}
+  {error && <p class="error-text" id={`${id}-err`}><Icon name="alert" />{error}</p>}
+</div>

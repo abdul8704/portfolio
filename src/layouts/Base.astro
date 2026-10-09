@@ -1,0 +1,36 @@
+---
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '../styles/tokens.css';
+import '../styles/site.css';
+import Seo from '../components/Seo.astro';
+import { ldScript } from '../lib/seo.js';
+
+const { seo, profile, graph = [], motion = true, owner = false } = Astro.props;
+const noindex = seo.noindex || !profile.indexable;
+---
+<!doctype html>
+<html lang="en" style={`--accent:${profile.accent}`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0d10" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <Seo {...seo} noindex={noindex} siteName={profile.name} ld={graph.length ? ldScript(graph) : ''} />
+    <!-- Content stays visible without JS; animation only arms when JS is on. -->
+    <script is:inline>document.documentElement.classList.add('js');</script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    {motion && <div class="progress" aria-hidden="true"><i></i></div>}
+    <slot />
+    {owner && <a href="/admin" class="admin-pill" style="position:fixed;right:16px;bottom:16px;z-index:70;background:var(--surface-raised-2);border:1px solid var(--action-line);color:var(--action);padding:10px 14px;border-radius:999px;font:500 12px/1 var(--font-mono);">Edit in admin</a>}
+    <script>
+      import '../scripts/motion.js';
+    </script>
+  </body>
+</html>

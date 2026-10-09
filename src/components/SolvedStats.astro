@@ -1,0 +1,61 @@
+---
+// Problem-solving stats from AlgoMentor: one big total, the difficulty split,
+// and a row per platform, then a link out to the full dashboard.
+import { ALGOMENTOR_URL } from '../lib/algomentor.js';
+const { stats, link, num } = Astro.props;
+const fmt = (n) => n.toLocaleString('en-US');
+const pct = (n, of) => (of > 0 ? (n / of) * 100 : 0);
+const diffs = [
+  ['easy', 'Easy', stats.easy],
+  ['medium', 'Medium', stats.medium],
+  ['hard', 'Hard', stats.hard],
+  ['other', 'Unrated', stats.other],
+].filter(([, , n]) => n > 0);
+const href = link || ALGOMENTOR_URL;
+const n = stats.platforms.length;
+---
+<section id="problem-solving" aria-labelledby="h-solving">
+  <h2 class="section-title" id="h-solving"><b>{num}</b>Problem solving</h2>
+  <div class="ps" data-reveal>
+    <div class="ps-head">
+      <p class="ps-total">
+        <span class="ps-num">{fmt(stats.solved)}</span>
+        <span class="ps-cap">problems solved{n > 1 && <> across <b>{n} platforms</b></>}</span>
+      </p>
+      <div class="ps-split" role="img" aria-label={diffs.map(([, l, v]) => `${l} ${v}`).join(', ')}>
+        <div class="ps-bar">
+          {diffs.map(([k, , v]) => <i class={`d-${k}`} style={`--w:${pct(v, stats.solved).toFixed(2)}%`}></i>)}
+        </div>
+        <ul class="ps-legend" aria-hidden="true">
+          {diffs.map(([k, l, v]) => <li class={`d-${k}`}><span>{l}</span> <b>{fmt(v)}</b></li>)}
+        </ul>
+      </div>
+    </div>
+
+    {n > 0 && (
+      <ul class="ps-platforms" data-stagger>
+        {stats.platforms.map((p) => (
+          <li class="ps-row">
+            <span class="ps-name">{p.label}</span>
+            <span class="ps-track" aria-hidden="true">
+              <span class="ps-fill" style={`--w:${pct(p.solved, stats.maxPlatform).toFixed(2)}%`}>
+                {[['easy', p.easy], ['medium', p.medium], ['hard', p.hard], ['other', p.other]].filter(([, v]) => v > 0)
+                  .map(([k, v]) => <i class={`d-${k}`} style={`--w:${pct(v, p.solved).toFixed(2)}%`}></i>)}
+              </span>
+            </span>
+            <span class="ps-count"><b>{fmt(p.solved)}</b> solved</span>
+            <span class="ps-meta">
+              {[p.easy && `${fmt(p.easy)} easy`, p.medium && `${fmt(p.medium)} medium`, p.hard && `${fmt(p.hard)} hard`].filter(Boolean).join(' · ')}
+              {p.rating && <span class="ps-rating">rating {fmt(p.rating)}{p.maxRating && p.maxRating > p.rating && ` · peak ${fmt(p.maxRating)}`}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <div class="ps-foot">
+      <a class="btn-link" href={href} target="_blank" rel="noopener" data-magnetic>View more on AlgoMentor <span aria-hidden="true">↗</span></a>
+      <span class="ps-note">Live from AlgoMentor · synced every few hours</span>
+    </div>
+  </div>
+</section>

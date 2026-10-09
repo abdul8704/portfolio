@@ -1,0 +1,40 @@
+---
+import Base from '../../layouts/Base.astro';
+import { listItems } from '../../lib/store.js';
+import { siteContext, fmtDate, websiteLd, personLd, crumbsLd, pageLd } from '../../lib/seo.js';
+import { readingMinutes } from '../../lib/markdown.js';
+
+const { profile, origin, drafts } = siteContext(Astro);
+const posts = listItems('post', { drafts });
+const title = `Blog | ${profile.name}`;
+const description = `Notes on backends, systems and AI pipelines by ${profile.name}, ${profile.role}.`;
+const graph = [
+  websiteLd(profile, origin),
+  personLd(profile, origin),
+  pageLd(`${origin}/blog`, title, description, origin),
+  { '@type': 'Blog', '@id': `${origin}/blog#blog`, url: `${origin}/blog`, name: `${profile.name}'s blog`, description, publisher: { '@id': `${origin}/#person` },
+    blogPost: posts.filter((p) => p.published).map((p) => ({ '@type': 'BlogPosting', headline: p.title, url: `${origin}/blog/${p.slug}`, datePublished: p.date })) },
+  crumbsLd(origin, [{ name: profile.name, path: '/' }, { name: 'Blog', path: '/blog' }]),
+];
+---
+<Base profile={profile} owner={!!Astro.locals.owner} graph={graph} seo={{ title, description, path: '/blog', origin, image: profile.ogImage, imageAlt: profile.ogImageAlt }}>
+  <main class="page" id="main">
+    <nav class="topbar" aria-label="Breadcrumb"><a href="/" data-magnetic>← {profile.name}</a><span aria-current="page">Blog</span></nav>
+    <h1>Notes</h1>
+    <p class="lede">Things I'm learning about backends, systems and AI pipelines, written from first principles.</p>
+    {posts.length === 0 ? (
+      <p class="empty" style="margin-top:var(--s-10)">No posts yet. Check back soon.</p>
+    ) : (
+      <ul class="post-list dim-list">
+        {posts.map((p) => (
+          <li class="post dim-item" data-cursor-label="Read">
+            <span class="card-kicker"><time datetime={p.date}>{fmtDate(p.date)}</time> · {readingMinutes(p.body)} min read{!p.published && ' · Draft'}</span>
+            <h3><a href={`/blog/${p.slug}`}>{p.title}</a> <span class="arrow" aria-hidden="true">↗</span></h3>
+            <p>{p.description}</p>
+            {p.tags?.length > 0 && <div class="tags">{p.tags.map((t) => <span class="tag">{t}</span>)}</div>}
+          </li>
+        ))}
+      </ul>
+    )}
+  </main>
+</Base>

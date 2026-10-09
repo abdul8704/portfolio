@@ -1,0 +1,101 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import Icon from '../../../components/admin/Icon.astro';
+import { ENTITIES } from '../../../lib/entities.js';
+import { listItems } from '../../../lib/store.js';
+import { fmtDate } from '../../../lib/seo.js';
+
+export const prerender = false;
+const { type } = Astro.params;
+const cfg = ENTITIES[type];
+if (!cfg) return Astro.rewrite('/404');
+const items = listItems(type, { drafts: true });
+const trash = listItems(type, { trash: true });
+const back = `/admin/${type}`;
+const label = cfg.label.toLowerCase();
+const sub = (it) => it.blurb || it.note || it.description || [it.org, it.period].filter(Boolean).join(' · ') || (it.items ? it.items.join(', ') : '');
+const ago = (ts) => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+---
+<Admin title={cfg.plural} active={type}>
+  <div class="a-head">
+    <div><h1>{cfg.plural}</h1><p>{cfg.help}</p></div>
+    <a class="a-btn primary" href={`/admin/${type}/new`}><Icon name="plus" />New {label}</a>
+  </div>
+
+  {items.length === 0 ? (
+    <div class="empty-state">
+      <h2>No {cfg.plural.toLowerCase()} yet</h2>
+      <p>{cfg.help}</p>
+      <a class="a-btn primary" href={`/admin/${type}/new`}><Icon name="plus" />Create your first {label}</a>
+    </div>
+  ) : (
+    <table class="table">
+      <caption class="sr-only">{cfg.plural}: {items.length} items</caption>
+      <thead><tr><th scope="col">{cfg.label}</th><th scope="col">Status</th><th scope="col">Updated</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {items.map((it, i) => {
+          const title = it[cfg.titleField];
+          return (
+            <tr>
+              <td class="title">
+                <a href={`/admin/${type}/${it.id}`}>{title}</a>
+                <small>{cfg.base ? `${cfg.base}/${it.slug}` : sub(it)}</small>
+              </td>
+              <td data-label="Status"><span class:list={['badge', it.published ? 'live' : 'draft']}>{it.published ? 'Published' : 'Draft'}</span></td>
+              <td data-label="Updated" class="muted">{ago(it.updatedAt)}</td>
+              <td>
+                <div class="row-actions">
+                  {!cfg.sortByDate && (
+                    <>
+                      <form method="post" action="/admin/api/move"><input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="dir" value="up" /><input type="hidden" name="_back" value={back} />
+                        <button class="a-btn sm ghost" disabled={i === 0} aria-label={`Move ${title} up`} data-no-loading><Icon name="up" /></button></form>
+                      <form method="post" action="/admin/api/move"><input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="dir" value="down" /><input type="hidden" name="_back" value={back} />
+                        <button class="a-btn sm ghost" disabled={i === items.length - 1} aria-label={`Move ${title} down`} data-no-loading><Icon name="down" /></button></form>
+                    </>
+                  )}
+                  <a class="a-btn sm ghost" href={`/admin/${type}/${it.id}`} aria-label={`Edit ${title}`}><Icon name="edit" /></a>
+                  {cfg.base && <a class="a-btn sm ghost" href={`${cfg.base}/${it.slug}`} target="_blank" rel="noopener" aria-label={`${it.published ? 'View' : 'Preview'} ${title}`}><Icon name="external" /></a>}
+                  <form method="post" action="/admin/api/duplicate"><input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="_back" value={back} />
+                    <button class="a-btn sm ghost" aria-label={`Duplicate ${title}`} data-no-loading><Icon name="copy" /></button></form>
+                  <form method="post" action="/admin/api/trash" data-confirm={`“${title}” will be removed from your site. You can restore it from the trash for 30 days.`} data-confirm-title={`Move this ${label} to trash?`} data-confirm-label="Move to trash">
+                    <input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="_back" value={back} />
+                    <button class="a-btn sm ghost danger" aria-label={`Move ${title} to trash`} data-no-loading><Icon name="trash" /></button></form>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  )}
+
+  {trash.length > 0 && (
+    <details class="trash">
+      <summary>Trash ({trash.length})</summary>
+      <table class="table">
+        <caption class="sr-only">Deleted {cfg.plural.toLowerCase()}</caption>
+        <thead><tr><th scope="col">{cfg.label}</th><th scope="col">Deleted</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          {trash.map((it) => {
+            const title = it[cfg.titleField];
+            return (
+              <tr>
+                <td class="title">{title}</td>
+                <td data-label="Deleted" class="muted">{ago(it.deletedAt)}</td>
+                <td>
+                  <div class="row-actions">
+                    <form method="post" action="/admin/api/restore"><input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="_back" value={back} />
+                      <button class="a-btn sm"><Icon name="restore" />Restore</button></form>
+                    <form method="post" action="/admin/api/purge" data-confirm={`“${title}” will be deleted permanently. This can't be undone.`} data-confirm-title="Delete forever?" data-confirm-label="Delete forever">
+                      <input type="hidden" name="_csrf" value={Astro.locals.owner.csrf} /><input type="hidden" name="type" value={type} /><input type="hidden" name="id" value={it.id} /><input type="hidden" name="_back" value={back} />
+                      <button class="a-btn sm danger">Delete forever</button></form>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </details>
+  )}
+</Admin>

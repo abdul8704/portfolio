@@ -1,0 +1,136 @@
+---
+import Base from '../layouts/Base.astro';
+import Rail from '../components/Rail.astro';
+import Card from '../components/Card.astro';
+import FlowDiagram from '../components/FlowDiagram.astro';
+import BranchTimeline from '../components/BranchTimeline.astro';
+import SolvedStats from '../components/SolvedStats.astro';
+import { getSolvedStats } from '../lib/algomentor.js';
+import { listItems } from '../lib/store.js';
+import { siteContext, fmtDate, personLd, websiteLd, pageLd, hasPlaceholder } from '../lib/seo.js';
+import { readingMinutes } from '../lib/markdown.js';
+
+const { profile, origin, drafts } = siteContext(Astro);
+const timeline = listItems('timeline', { drafts });
+const projects = listItems('project', { drafts });
+const achievements = listItems('achievement', { drafts });
+const certs = listItems('certification', { drafts });
+const skills = listItems('skill', { drafts });
+const posts = listItems('post', { drafts }).slice(0, 3);
+const solved = await getSolvedStats(profile.algomentorHandle);
+
+const nav = [
+  ['About', '#about', true],
+  ...(timeline.length ? [['Timeline', '#timeline', true]] : []),
+  ...(projects.length ? [['Projects', '#projects', true]] : []),
+  ...(solved ? [['Problem solving', '#problem-solving', true]] : []),
+  ...(achievements.length ? [['Achievements', '#achievements', true]] : []),
+  ...(certs.length ? [['Certifications', '#certifications', true]] : []),
+  ['Blog', '/blog', false],
+];
+let n = 0;
+const num = () => String(++n).padStart(2, '0');
+
+const title = profile.seoTitle || `${profile.name}, ${profile.role}`;
+const description = profile.seoDescription || `${profile.summary} ${profile.about?.[0] || ''}`;
+const url = origin + '/';
+const graph = [
+  websiteLd(profile, origin),
+  personLd(profile, origin, {
+    skills: skills.flatMap((s) => s.items),
+    achievements: achievements.map((a) => a.title).filter((t) => !hasPlaceholder(t)),
+  }),
+  { ...pageLd(url, title, description, origin, profile.ogImage ? origin + profile.ogImage : ''), '@type': 'ProfilePage', mainEntity: { '@id': `${origin}/#person` } },
+];
+---
+<Base profile={profile} owner={!!Astro.locals.owner} graph={graph}
+  seo={{ title, description, path: '/', origin, image: profile.ogImage, imageAlt: profile.ogImageAlt }}>
+  <div class="shell">
+    <Rail profile={profile} skills={skills} nav={nav} />
+
+    <main class="content" id="main" data-content>
+      <div class="hero-spacer" data-hero-spacer aria-hidden="true"></div>
+      <section id="about" class="about" aria-labelledby="hero">
+        <h2 class="hero-title" id="hero">
+          {(profile.headline.length ? profile.headline : [profile.role]).map((line, i) => <span class="line"><span style={`--i:${i}`}>{line}</span></span>)}
+        </h2>
+        <div data-reveal>
+          {profile.about.map((p) => <p>{p}</p>)}
+          {profile.status && <span class="status">{profile.status}</span>}
+          <div class="about-actions">
+            {profile.resume && <a class="btn-link" href={profile.resume} data-magnetic>Résumé <span aria-hidden="true">↗</span></a>}
+            {profile.email && <a class="btn-link" href={`mailto:${profile.email}`} data-magnetic>Get in touch <span aria-hidden="true">↗</span></a>}
+          </div>
+        </div>
+        <FlowDiagram />
+      </section>
+
+      {timeline.length > 0 && (
+        <section id="timeline" aria-labelledby="h-timeline">
+          <h2 class="section-title" id="h-timeline"><b>{num()}</b>Timeline</h2>
+          <BranchTimeline items={timeline} />
+        </section>
+      )}
+
+      {projects.length > 0 && (
+        <section id="projects" aria-labelledby="h-projects">
+          <h2 class="section-title" id="h-projects"><b>{num()}</b>Projects</h2>
+          <ul class="card-list dim-list" data-stagger>
+            {projects.map((p) => (
+              <Card href={`/projects/${p.slug}`} title={p.name} desc={p.blurb} result={p.outcome} tags={p.stack}
+                image={p.image} alt={p.imageAlt} transitionName={`t-project-${p.slug}`} meta={p.published ? '' : 'Draft'} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {solved && <SolvedStats stats={solved} link={profile.algomentorLink} num={num()} />}
+
+      {achievements.length > 0 && (
+        <section id="achievements" aria-labelledby="h-achievements">
+          <h2 class="section-title" id="h-achievements"><b>{num()}</b>Achievements</h2>
+          <ul class="card-list dim-list" data-stagger>
+            {achievements.map((a) => (
+              <Card href={`/achievements/${a.slug}`} title={a.title} kind={a.kind} meta={[a.event, a.year].filter(Boolean).join(' · ')}
+                desc={a.note} image={a.image} alt={a.imageAlt} transitionName={`t-achievement-${a.slug}`} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {certs.length > 0 && (
+        <section id="certifications" aria-labelledby="h-certs">
+          <h2 class="section-title" id="h-certs"><b>{num()}</b>Certifications</h2>
+          <ul class="card-list dim-list" data-stagger>
+            {certs.map((c) => (
+              <Card href={`/certifications/${c.slug}`} title={c.name} meta={[c.issuer, c.year].filter(Boolean).join(' · ')}
+                desc={c.note} image={c.image} alt={c.imageAlt} transitionName={`t-certification-${c.slug}`} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section id="writing" aria-labelledby="h-writing">
+        <h2 class="section-title" id="h-writing"><b>{num()}</b>Writing</h2>
+        {posts.length === 0 ? <p class="empty">No posts yet.</p> : (
+          <ul class="dim-list" data-stagger>
+            {posts.map((p) => (
+              <li class="post dim-item" data-reveal data-cursor-label="Read">
+                <span class="card-kicker">{fmtDate(p.date)} · {readingMinutes(p.body)} min read{!p.published && ' · Draft'}</span>
+                <h3><a href={`/blog/${p.slug}`}>{p.title}</a> <span class="arrow" aria-hidden="true">↗</span></h3>
+                <p>{p.description}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p style="margin-top:var(--s-4)" data-reveal><a class="btn-link" href="/blog" data-magnetic>All posts <span aria-hidden="true">→</span></a></p>
+      </section>
+
+      <footer class="foot">
+        <p>© {new Date().getFullYear()} {profile.name}</p>
+        <p><a href="/rss.xml">RSS</a> · <a href="/llms.txt">llms.txt</a> · <a href="/sitemap.xml">Sitemap</a></p>
+      </footer>
+    </main>
+  </div>
+  <a class="scroll-hint" href="#about" data-scroll-hint aria-hidden="true" tabindex="-1"><span>scroll</span><i></i></a>
+</Base>

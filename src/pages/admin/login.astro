@@ -1,0 +1,70 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import { checkLogin, createSession, isConfigured, lockedFor, recordFailure, clearFailures } from '../../lib/auth.js';
+import { clientIp, isHttps, safeNext } from '../../lib/http.js';
+
+export const prerender = false;
+const next = safeNext(Astro.url.searchParams.get('next'));
+if (Astro.locals.owner) return Astro.redirect(next, 303);
+
+const configured = isConfigured();
+let error = '';
+let email = '';
+
+if (Astro.request.method === 'POST' && configured) {
+  const form = await Astro.request.formData();
+  email = String(form.get('email') || '');
+  const ip = clientIp(Astro);
+  const wait = lockedFor(ip);
+  if (wait) {
+    error = `Too many attempts. Try again in ${wait} minute${wait > 1 ? 's' : ''}.`;
+    Astro.response.status = 429;
+  } else if (checkLogin(email, form.get('password'))) {
+    clearFailures(ip);
+    const { token, maxAge } = createSession(ip, Astro.request.headers.get('user-agent'));
+    Astro.cookies.set('sid', token, { httpOnly: true, sameSite: 'strict', secure: isHttps(Astro), path: '/', maxAge });
+    return Astro.redirect(safeNext(form.get('next') || next), 303);
+  } else {
+    recordFailure(ip);
+    error = 'The email or password is incorrect.';
+    Astro.response.status = 401;
+  }
+}
+---
+<Admin title="Sign in" bare>
+  <div class="login">
+    <div class="login-card">
+      <div class="a-brand"><i>A</i><span>Portfolio admin<small>Owner access only</small></span></div>
+      <h1>Sign in</h1>
+      <p class="muted">Manage your portfolio content. This area is private.</p>
+
+      {!configured ? (
+        <div class="alert warn" style="margin-top:var(--s-6)" role="status">
+          <Icon name="alert" />
+          <div>
+            <strong>Admin access is not set up yet.</strong>
+            <p class="help">On the server, run <code class="inline">npm run setup</code> to choose your email and password, then restart.</p>
+          </div>
+        </div>
+      ) : (
+        <form method="post" novalidate>
+          <input type="hidden" name="next" value={next} />
+          {error && <div class="alert err" role="alert" style="margin:0"><Icon name="alert" /><span>{error}</span></div>}
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="username" required value={email} autofocus />
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="pw">
+              <input id="password" name="password" type="password" autocomplete="current-password" required />
+              <button type="button" data-reveal-pw aria-pressed="false" aria-controls="password">Show</button>
+            </div>
+          </div>
+          <button class="a-btn primary" type="submit" style="min-height:2.75rem">Sign in</button>
+        </form>
+      )}
+    </div>
+  </div>
+</Admin>

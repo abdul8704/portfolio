@@ -1,0 +1,85 @@
+---
+// Git-branch timeline: the longest entry (usually the degree) is the main line,
+// anything that happened at the same time branches off beside it and merges back.
+// Bars are to scale, so "a 3-month internship in the middle of a 4-year degree" reads at a glance.
+import { layoutTimeline, entryPeriod } from '../lib/timeline.js';
+
+const { items } = Astro.props;
+const LABEL_H = 66;
+const L = layoutTimeline(items, { labelH: LABEL_H });
+
+const AXIS = 46; // year labels
+const LANE = 30; // gap between lanes
+const lx = (lane) => AXIS + 18 + lane * LANE;
+const lanesW = L ? lx(L.laneCount - 1) + 22 : 0;
+const labelX = lanesW + 26;
+
+// details, newest first; anything without readable dates goes last
+const placed = L ? [...L.rows].sort((a, b) => b.e - a.e || b.s - a.s) : [];
+const unplaced = items.filter((t) => !placed.some((r) => r.t === t));
+const ordered = [...placed.map((r) => r.t), ...unplaced];
+const key = (t) => `tl-${items.indexOf(t)}`;
+
+function branchPath(r) {
+  const cx = lx(r.lane);
+  const px = lx(r.parentLane ?? 0);
+  const k = 18; // how far the curve reaches past the bar ends
+  let d = `M ${px} ${r.bottom + k} C ${px} ${r.bottom}, ${cx} ${r.bottom + k / 2}, ${cx} ${r.bottom - 2}`;
+  if (!r.present) d += ` M ${cx} ${r.top + 2} C ${cx} ${r.top - k / 2}, ${px} ${r.top}, ${px} ${r.top - k}`;
+  return d;
+}
+const leader = (r) => {
+  const x1 = lx(r.lane) + 7;
+  const y2 = r.labelY + LABEL_H / 2;
+  return `M ${x1} ${r.mid} C ${x1 + 14} ${r.mid}, ${labelX - 18} ${y2}, ${labelX - 6} ${y2}`;
+};
+---
+{L && (
+  <div class="branch-wrap" data-branch>
+    <div class="branch-legend" aria-hidden="true">
+      <span class="lg education">Education</span><span class="lg work">Work</span><span class="lg-note">Bars are to scale · overlaps branch to the side</span>
+    </div>
+    <div class="branch" style={`height:${Math.ceil(L.height)}px`}>
+      <svg class="branch-svg" width="100%" height={Math.ceil(L.height)} aria-hidden="true">
+        {L.years.map((yr) => (
+          <>
+            <line class="br-grid" x1={AXIS - 6} x2="100%" y1={yr.line} y2={yr.line} />
+            <text class="br-year" x="0" y={yr.y + 4}>{yr.year}</text>
+          </>
+        ))}
+        {L.now !== null && (
+          <>
+            <line class="br-now" x1={AXIS - 6} x2={lanesW} y1={L.now} y2={L.now} />
+            <text class="br-now-t" x={lanesW + 4} y={L.now + 3}>now</text>
+          </>
+        )}
+        {L.rows.filter((r) => r.lane > 0).map((r) => <path class={`br-curve ${r.t.kind}`} d={branchPath(r)} data-for={key(r.t)} />)}
+        {L.rows.map((r) => <path class="br-leader" d={leader(r)} data-for={key(r.t)} />)}
+        {L.rows.map((r) => (
+          <g class={`br-bar ${r.t.kind}${r.present ? ' present' : ''}`} data-for={key(r.t)}>
+            <rect x={lx(r.lane) - 5} y={r.top} width="10" height={Math.max(6, r.bottom - r.top)} rx="5" />
+            <circle cx={lx(r.lane)} cy={r.bottom - 1} r="4" />
+            {r.present ? <circle class="br-head" cx={lx(r.lane)} cy={r.top + 1} r="5" /> : <circle cx={lx(r.lane)} cy={r.top + 1} r="4" />}
+          </g>
+        ))}
+      </svg>
+      {L.rows.map((r) => (
+        <a class={`br-label ${r.t.kind}`} href={`#${key(r.t)}`} style={`top:${r.labelY}px;left:${labelX}px;height:${LABEL_H}px`} data-tl-pick={key(r.t)}>
+          <span class="br-kicker"><b>{r.t.kind === 'work' ? 'Work' : 'Education'}</b> <span class="br-dates">{r.label} · </span>{r.duration}</span>
+          <span class="br-title">{r.t.title}</span>
+          <span class="br-org">{r.t.org}</span>
+        </a>
+      ))}
+    </div>
+  </div>
+)}
+<ol class="tl-details" data-tl-details>
+  {ordered.map((t, i) => (
+    <li class={`tl-item ${t.kind}`} id={key(t)} data-tl-item={key(t)} data-placed={i < placed.length ? '' : undefined}>
+      <div class="tl-meta"><span class="tl-kind">{t.kind === 'work' ? 'Work' : 'Education'}</span><span>{entryPeriod(t)}</span>{!t.published && <span>Draft</span>}</div>
+      <h3>{t.title} <span>· {t.org}</span></h3>
+      {t.points?.length > 0 && <ul>{t.points.map((p) => <li>{p}</li>)}</ul>}
+      {t.tags?.length > 0 && <div class="tags">{t.tags.map((g) => <span class="tag">{g}</span>)}</div>}
+    </li>
+  ))}
+</ol>

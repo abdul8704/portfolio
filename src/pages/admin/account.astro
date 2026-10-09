@@ -1,0 +1,63 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import { credentials, checkLogin, changePassword, destroyOthers, listSessions } from '../../lib/auth.js';
+import { flash } from '../../lib/http.js';
+
+export const prerender = false;
+const creds = credentials();
+const errors = {};
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const current = String(form.get('current') || '');
+  const next = String(form.get('next') || '');
+  const again = String(form.get('again') || '');
+  if (!checkLogin(creds.email, current)) errors.current = 'That is not your current password.';
+  if (next.length < 10) errors.next = 'Use at least 10 characters. A few random words work well.';
+  else if (next === current) errors.next = 'Choose a password you have not used here before.';
+  if (next !== again) errors.again = 'The two passwords do not match.';
+  if (!Object.keys(errors).length) {
+    changePassword(next);
+    destroyOthers(Astro.locals.owner.id);
+    flash(Astro, 'ok', 'Password changed. Every other device was signed out.');
+    return Astro.redirect('/admin/account', 303);
+  }
+  Astro.response.status = 422;
+}
+const csrf = Astro.locals.owner.csrf;
+const sessions = listSessions();
+const when = (t) => new Date(t).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const agent = (a = '') => (/Firefox/.test(a) ? 'Firefox' : /Edg/.test(a) ? 'Edge' : /Chrome/.test(a) ? 'Chrome' : /Safari/.test(a) ? 'Safari' : 'Browser') + (/Mobile|Android|iPhone/.test(a) ? ' on phone' : /Mac/.test(a) ? ' on Mac' : /Windows/.test(a) ? ' on Windows' : /Linux/.test(a) ? ' on Linux' : '');
+---
+<Admin title="Account" active="account">
+  <div class="a-head"><div><h1>Account</h1><p>Signed in as <strong>{creds.email}</strong>. Only this account can change the site.</p></div></div>
+  <div class="cols">
+    <form method="post" class="panel" style="display:flex;flex-direction:column;gap:var(--s-4)" novalidate>
+      <input type="hidden" name="_csrf" value={csrf} />
+      <h2>Change password</h2>
+      {[['current', 'Current password', 'current-password'], ['next', 'New password', 'new-password'], ['again', 'Repeat new password', 'new-password']].map(([k, l, ac]) => (
+        <div class="field">
+          <label for={`p-${k}`}>{l}</label>
+          <div class="pw"><input id={`p-${k}`} name={k} type="password" autocomplete={ac} required aria-invalid={errors[k] ? 'true' : undefined} aria-describedby={errors[k] ? `p-${k}-e` : undefined} /><button type="button" data-reveal-pw aria-pressed="false" aria-controls={`p-${k}`}>Show</button></div>
+          {errors[k] && <p class="error-text" id={`p-${k}-e`}><Icon name="alert" />{errors[k]}</p>}
+        </div>
+      ))}
+      <button class="a-btn primary" type="submit">Change password</button>
+    </form>
+
+    <section class="panel">
+      <h2>Signed-in devices</h2>
+      <ul class="plain-list">
+        {sessions.map((s) => (
+          <li>
+            <span>{agent(s.agent)}{s.id === Astro.locals.owner.id && <span class="badge live" style="margin-left:var(--s-2)">This device</span>}<br /><span class="help">Last active {when(s.last_seen)}</span></span>
+          </li>
+        ))}
+      </ul>
+      <div style="display:flex;flex-direction:column;gap:var(--s-2);margin-top:var(--s-4)">
+        <form method="post" action="/admin/api/logout-others"><input type="hidden" name="_csrf" value={csrf} /><input type="hidden" name="_back" value="/admin/account" /><button class="a-btn" style="width:100%" disabled={sessions.length < 2}>Sign out other devices</button></form>
+        <form method="post" action="/admin/api/logout-all" data-confirm="Every device, including this one, will be signed out." data-confirm-title="Sign out everywhere?" data-confirm-label="Sign out everywhere" data-confirm-danger="false"><input type="hidden" name="_csrf" value={csrf} /><button class="a-btn danger" style="width:100%">Sign out everywhere</button></form>
+      </div>
+    </section>
+  </div>
+</Admin>

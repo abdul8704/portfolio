@@ -1,0 +1,102 @@
+---
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '../styles/tokens.css';
+import '../styles/site.css';
+import '../styles/admin.css';
+import Icons from '../components/admin/Icons.astro';
+import Icon from '../components/admin/Icon.astro';
+import { ENTITIES } from '../lib/entities.js';
+import { counts } from '../lib/store.js';
+import { takeFlash } from '../lib/http.js';
+import { getProfile } from '../lib/store.js';
+
+const { title, active = '', bare = false, media = null } = Astro.props;
+const owner = Astro.locals.owner;
+const flashMsg = takeFlash(Astro);
+const profile = getProfile();
+const c = bare ? {} : counts();
+const content = ['project', 'achievement', 'certification', 'timeline', 'skill', 'post'];
+---
+<!doctype html>
+<html lang="en" style={`--accent:${profile.accent}`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="dark" />
+    {owner && <meta name="csrf" content={owner.csrf} />}
+    <title>{title} · Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="admin">
+    <Icons />
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div id="live" class="sr-only" aria-live="polite"></div>
+    {bare ? (
+      <main id="main"><slot /></main>
+    ) : (
+      <div class="a-shell">
+        <div class="a-top">
+          <strong>Admin</strong>
+          <button class="a-btn sm" type="button" data-menu aria-expanded="false" aria-controls="a-side" aria-label="Menu"><Icon name="menu" /></button>
+        </div>
+        <aside class="a-side" id="a-side">
+          <div class="a-brand"><i>{profile.name.slice(0, 1)}</i><span>{profile.name}<small>Content admin</small></span></div>
+          <nav class="a-nav" aria-label="Admin">
+            <a href="/admin" aria-current={active === 'dash' ? 'page' : undefined}><Icon name="dash" />Dashboard</a>
+            <h2>Content</h2>
+            {content.map((t) => (
+              <a href={`/admin/${t}`} aria-current={active === t ? 'page' : undefined}>
+                <Icon name="file" />{ENTITIES[t].plural}<span class="count">{c[t]?.total ?? 0}</span>
+              </a>
+            ))}
+            <a href="/admin/media" aria-current={active === 'media' ? 'page' : undefined}><Icon name="image" />Images</a>
+            <h2>Site</h2>
+            <a href="/admin/profile" aria-current={active === 'profile' ? 'page' : undefined}><Icon name="sliders" />Intro &amp; SEO</a>
+            <a href="/admin/account" aria-current={active === 'account' ? 'page' : undefined}><Icon name="user" />Account</a>
+          </nav>
+          <div class="a-side-foot a-nav">
+            <a href="/" target="_blank" rel="noopener"><Icon name="globe" />View site</a>
+            <form method="post" action="/admin/api/logout">
+              <input type="hidden" name="_csrf" value={owner.csrf} />
+              <button type="submit"><Icon name="logout" />Sign out</button>
+            </form>
+          </div>
+        </aside>
+        <main class="a-main" id="main"><slot /></main>
+      </div>
+    )}
+
+    {flashMsg && (
+      <div class:list={['toast', flashMsg.type]} role={flashMsg.type === 'err' ? 'alert' : 'status'}>
+        <Icon name={flashMsg.type === 'err' ? 'alert' : 'check'} /><span>{flashMsg.message}</span>
+        <button type="button" aria-label="Dismiss"><Icon name="x" /></button>
+      </div>
+    )}
+
+    <dialog id="confirm" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+      <div class="dlg-body"><h2 id="confirm-title">Are you sure?</h2><p id="confirm-text"></p></div>
+      <div class="dlg-foot">
+        <button type="button" class="a-btn" id="confirm-cancel">Cancel</button>
+        <button type="button" class="a-btn danger-solid" id="confirm-ok">Confirm</button>
+      </div>
+    </dialog>
+
+    {media && (
+      <dialog id="library" class="wide" aria-labelledby="lib-title">
+        <div class="dlg-body"><h2 id="lib-title">Choose an image</h2><p class="muted">{media.length ? 'Pick one you uploaded before.' : 'No images yet. Upload one first.'}</p></div>
+        <div class="lib-grid">
+          {media.map((m) => <button type="button" data-pick={`/media/${m.id}.webp`}><img src={`/media/${m.id}-sm.webp`} alt="" loading="lazy" width="320" height="240" />{m.name}</button>)}
+        </div>
+        <div class="dlg-foot"><button type="button" class="a-btn" id="library-close">Close</button></div>
+      </dialog>
+    )}
+    <script>
+      import '../scripts/admin.js';
+    </script>
+  </body>
+</html>

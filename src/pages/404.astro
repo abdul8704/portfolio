@@ -1,0 +1,14 @@
+---
+import Base from '../layouts/Base.astro';
+import { siteContext } from '../lib/seo.js';
+const { profile, origin } = siteContext(Astro);
+Astro.response.status = 404;
+---
+<Base profile={profile} motion={false} seo={{ title: `Page not found | ${profile.name}`, description: 'That page does not exist.', path: '/404', origin, noindex: true }}>
+  <main class="page" id="main">
+    <nav class="topbar"><a href="/">← {profile.name}</a><span>404</span></nav>
+    <h1>Page not found</h1>
+    <p class="lede">That address does not exist, or the page has moved. Try the home page or the blog.</p>
+    <div class="actions"><a class="btn btn-primary" href="/">Back home</a><a class="btn" href="/blog">Read the blog</a></div>
+  </main>
+</Base>

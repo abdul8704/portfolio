@@ -1,0 +1,41 @@
+---
+// A tiny animated request flow: the one "backend" visual on the page.
+const nodes = [
+  { x: 52, label: 'client' },
+  { x: 156, label: 'api' },
+  { x: 260, label: 'queue' },
+  { x: 364, label: 'worker' },
+  { x: 468, label: 'db' },
+];
+---
+
+<figure class="flow" data-reveal>
+  <svg
+    viewBox="0 0 520 84"
+    role="img"
+    aria-label="Request flowing from client through API and queue to a worker and database"
+  >
+    <line x1="52" y1="38" x2="468" y2="38" class="flow-line"></line>
+    {
+      nodes.map((n) => (
+        <g>
+          <rect x={n.x - 36} y="22" width="72" height="32" rx="8" class="flow-node"></rect>
+          <text x={n.x} y="42" text-anchor="middle" class="flow-label">{n.label}</text>
+        </g>
+      ))
+    }
+    {
+      [0, 1.4, 2.8].map((delay) => (
+        <circle r="3.5" cy="38" class="flow-dot">
+          <animateMotion
+            dur="4.2s"
+            begin={`${delay}s`}
+            repeatCount="indefinite"
+            path="M52 0 H468"
+            calcMode="linear"></animateMotion>
+        </circle>
+      ))
+    }
+    <text x="260" y="76" text-anchor="middle" class="flow-caption">POST /events → 202 Accepted</text>
+  </svg>
+</figure>

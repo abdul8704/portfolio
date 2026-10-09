@@ -1,0 +1,20 @@
+---
+import { small } from '../lib/seo.js';
+const { src, alt = '', label = '', eager = false, sizes = '(max-width: 640px) 90vw, 220px', width, height, hero = false } = Astro.props;
+const initials = String(label).replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '·';
+---
+{src ? (
+  <img
+    src={hero ? src : small(src)}
+    srcset={hero ? undefined : `${small(src)} 640w, ${src} 1600w`}
+    sizes={hero ? undefined : sizes}
+    alt={alt}
+    width={width || 1600}
+    height={height || 1000}
+    loading={eager ? 'eager' : 'lazy'}
+    decoding="async"
+    fetchpriority={eager ? 'high' : undefined}
+  />
+) : (
+  <div class="thumb-ph" aria-hidden="true"><span>{initials}</span></div>
+)}

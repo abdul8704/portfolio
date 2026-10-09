@@ -1,0 +1,43 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import { listMedia, mediaUsage } from '../../lib/store.js';
+import { ENTITIES } from '../../lib/entities.js';
+
+export const prerender = false;
+const media = listMedia().map((m) => ({ ...m, used: mediaUsage(m.id) }));
+const csrf = Astro.locals.owner.csrf;
+const kb = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e3)} KB`);
+---
+<Admin title="Images" active="media">
+  <div class="a-head"><div><h1>Images</h1><p>Every image you upload is resized, converted to WebP and stripped of location data.</p></div></div>
+  <label class="drop" data-drop>
+    <Icon name="image" />
+    <strong>Drop images here or <span style="color:var(--action);text-decoration:underline">browse</span></strong>
+    <span class="help">JPG, PNG, WebP, GIF or AVIF · up to 8 MB each</span>
+    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple class="sr-only" />
+  </label>
+  {media.length === 0 ? (
+    <div class="empty-state"><h2>No images yet</h2><p>Upload thumbnails for your projects, certifications and achievements. They appear on cards and on each detail page.</p></div>
+  ) : (
+    <ul class="media-grid">
+      {media.map((m) => (
+        <li class="media-card">
+          <img src={`/media/${m.id}-sm.webp`} alt="" loading="lazy" width="640" height="400" />
+          <div>
+            <strong style="overflow-wrap:anywhere">{m.name}</strong>
+            <span class="help">{m.width}×{m.height} · {kb(m.bytes)}</span>
+            <span class="help">{m.used.length ? `Used by: ${m.used.map((u) => u.title).join(', ')}` : 'Not used anywhere'}</span>
+            <div style="display:flex;gap:var(--s-2);flex-wrap:wrap">
+              <button type="button" class="a-btn" data-copy={`/media/${m.id}.webp`} data-no-loading>Copy link</button>
+              <form method="post" action="/admin/api/media-delete" data-confirm={`“${m.name}” will be deleted permanently.`} data-confirm-title="Delete this image?" data-confirm-label="Delete image">
+                <input type="hidden" name="_csrf" value={csrf} /><input type="hidden" name="mediaId" value={m.id} /><input type="hidden" name="_back" value="/admin/media" />
+                <button class="a-btn danger" disabled={m.used.length > 0} title={m.used.length ? 'Remove it from the items using it first' : undefined} data-no-loading>Delete</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )}
+</Admin>

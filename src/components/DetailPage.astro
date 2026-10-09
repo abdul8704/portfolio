@@ -1,0 +1,117 @@
+---
+import Base from '../layouts/Base.astro';
+import Thumb from './Thumb.astro';
+import { ENTITIES } from '../lib/entities.js';
+import { listItems } from '../lib/store.js';
+import { renderMarkdown, readingMinutes } from '../lib/markdown.js';
+import { abs, fmtDate, itemLd, personLd, websiteLd, crumbsLd, pageLd, siteContext } from '../lib/seo.js';
+
+const { type, item } = Astro.props;
+const { profile, origin, drafts } = siteContext(Astro);
+const cfg = ENTITIES[type];
+const title = item[cfg.titleField];
+const desc = item.blurb || item.note || item.description || '';
+const isPost = type === 'post';
+const { html, headings } = await renderMarkdown(item.body || '');
+const toc = headings.filter((h) => h.level <= 3);
+const path = `${cfg.base}/${item.slug}`;
+const url = origin + path;
+
+const siblings = listItems(type, { drafts });
+const idx = siblings.findIndex((s) => s.id === item.id);
+const prev = idx > 0 ? siblings[idx - 1] : null;
+const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
+const label = (it) => it[cfg.titleField];
+
+const facts = {
+  project: [['Stack', item.stack?.join(', ')], ['Result', item.outcome]],
+  achievement: [['Type', item.kind], ['Event', item.event], ['Year', item.year]],
+  certification: [['Issuer', item.issuer], ['Year', item.year], ['Credential ID', item.credentialId]],
+  post: [],
+}[type].filter(([, v]) => v);
+const actions = {
+  project: [item.source && ['View source', item.source, true], item.demo && ['Live demo', item.demo, false]],
+  achievement: [item.link && ['Read more', item.link, false]],
+  certification: [item.href && ['Verify credential', item.href, false]],
+  post: [],
+}[type].filter(Boolean);
+
+const crumbs = [{ name: profile.name, path: '/' }, isPost ? { name: 'Blog', path: '/blog' } : { name: cfg.plural, path: `/#${type === 'project' ? 'projects' : type === 'achievement' ? 'achievements' : 'certifications'}` }, { name: title, path }];
+const pageTitle = isPost ? `${title} | ${profile.name}` : `${title}: ${cfg.label} | ${profile.name}`;
+const image = item.image || profile.ogImage;
+const graph = [
+  websiteLd(profile, origin),
+  personLd(profile, origin),
+  pageLd(url, pageTitle, desc, origin, image ? abs(origin, image) : ''),
+  itemLd(type, item, origin, profile),
+  crumbsLd(origin, crumbs),
+  ...(isPost ? [{ '@type': 'Blog', '@id': `${origin}/blog#blog`, url: `${origin}/blog`, name: `${profile.name}'s blog`, publisher: { '@id': `${origin}/#person` } }] : []),
+];
+const morph = `t-${type}-${item.slug}`;
+---
+<Base profile={profile} owner={!!Astro.locals.owner} graph={graph} motion={true}
+  seo={{
+    title: pageTitle, description: desc, path, origin, image, imageAlt: item.imageAlt || profile.ogImageAlt,
+    type: isPost ? 'article' : 'website', noindex: !item.published,
+    published: isPost ? item.date : undefined, modified: new Date(item.updatedAt).toISOString(), tags: item.tags || [],
+  }}>
+  <main class="page" id="main">
+    <nav class="topbar crumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/" data-magnetic>{profile.name}</a></li>
+        <li><a href={isPost ? '/blog' : crumbs[1].path}>{isPost ? 'Blog' : cfg.plural}</a></li>
+      </ol>
+      {Astro.locals.owner && <a href={`/admin/${type}/${item.id}`}>Edit</a>}
+    </nav>
+
+    {!item.published && <p class="draft-banner">Draft: only you can see this page. It is hidden from visitors and search engines.</p>}
+
+    <article>
+      <header>
+        <h1>{title}</h1>
+        {desc && <p class="lede">{desc}</p>}
+        {isPost && (
+          <p class="meta">
+            <time datetime={item.date}>{fmtDate(item.date)}</time>
+            <span>{readingMinutes(item.body)} min read</span>
+            {item.tags?.length > 0 && <span>{item.tags.join(', ')}</span>}
+          </p>
+        )}
+      </header>
+
+      {(item.image || !isPost) && (
+        <figure class="hero-img" style={`view-transition-name: ${morph}`}>
+          <Thumb src={item.image} alt={item.imageAlt} label={title} eager hero width={1600} height={900} />
+        </figure>
+      )}
+
+      {facts.length > 0 && (
+        <dl class="facts">
+          {facts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+      )}
+      {actions.length > 0 && (
+        <div class="actions">
+          {actions.map(([text, href, primary]) => <a class:list={['btn', primary && 'btn-primary']} href={href} target="_blank" rel="noopener" data-magnetic>{text} <span aria-hidden="true">↗</span></a>)}
+        </div>
+      )}
+
+      {toc.length >= 3 && (
+        <nav class="toc" aria-labelledby="toc-h">
+          <h2 id="toc-h">On this page</h2>
+          {toc.map((h) => <a class:list={[h.level === 3 && 'l3']} href={`#${h.id}`}>{h.text}</a>)}
+        </nav>
+      )}
+
+      {html && <div class="prose" set:html={html} />}
+      {!html && !isPost && <p class="prose" style="color:var(--content-secondary)">A full write-up is coming soon.</p>}
+    </article>
+
+    {(prev || next) && (
+      <nav class="pager" aria-label={`More ${cfg.plural.toLowerCase()}`}>
+        {prev ? <a class="prev" href={`${cfg.base}/${prev.slug}`} rel="prev"><small>{isPost ? 'Newer' : 'Previous'}</small><span>{label(prev)}</span></a> : <span></span>}
+        {next && <a class="next" href={`${cfg.base}/${next.slug}`} rel="next"><small>{isPost ? 'Older' : 'Next'}</small><span>{label(next)}</span></a>}
+      </nav>
+    )}
+  </main>
+</Base>

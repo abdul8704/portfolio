@@ -1,0 +1,55 @@
+---
+// Default illustration when no profile picture is set: a dev in a hoodie,
+// round glasses, laptop glowing with </>. Pure inline SVG, themed by the accent colour.
+const { label = 'Illustration of a developer at a laptop' } = Astro.props;
+---
+<svg class="avatar avatar-svg" viewBox="0 0 240 240" width="112" height="112" role="img" aria-label={label}>
+  <defs>
+    <clipPath id="av-clip"><circle cx="120" cy="120" r="120" /></clipPath>
+    <radialGradient id="av-bg" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#1b232c" />
+      <stop offset="1" stop-color="#0d1115" />
+    </radialGradient>
+    <radialGradient id="av-glow" cx="50%" cy="100%" r="80%">
+      <stop offset="0" style="stop-color:var(--action)" stop-opacity="0.45" />
+      <stop offset="1" style="stop-color:var(--action)" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <g clip-path="url(#av-clip)">
+    <rect width="240" height="240" fill="url(#av-bg)" />
+    <!-- faint code rain in the background -->
+    <g font-family="IBM Plex Mono, monospace" font-size="11" style="fill:var(--action)" opacity="0.16">
+      <text x="18" y="40">01101</text><text x="176" y="58">{'{ }'}</text>
+      <text x="26" y="88">GET /</text><text x="170" y="104">200 OK</text>
+      <text x="14" y="136">await</text><text x="186" y="150">0x1F</text>
+    </g>
+    <!-- hoodie / shoulders -->
+    <path d="M38 240 C42 186 74 160 120 160 C166 160 198 186 202 240 Z" fill="#232b35" />
+    <path d="M96 162 L120 196 L144 162" fill="none" stroke="#2f3944" stroke-width="5" stroke-linejoin="round" />
+    <path d="M104 172 L104 206 M136 172 L136 206" stroke="#3a4552" stroke-width="3" stroke-linecap="round" />
+    <!-- neck + head -->
+    <rect x="106" y="138" width="28" height="26" rx="10" fill="#c79a7a" />
+    <ellipse cx="120" cy="108" rx="40" ry="44" fill="#d9ad8c" />
+    <ellipse cx="80" cy="112" rx="7" ry="10" fill="#c99d7d" />
+    <ellipse cx="160" cy="112" rx="7" ry="10" fill="#c99d7d" />
+    <!-- messy hair -->
+    <path d="M78 104 C72 70 96 52 122 54 C150 54 170 72 162 104 C158 90 150 82 140 80 C142 88 136 92 128 84 C126 92 114 92 110 82 C102 92 92 90 90 82 C84 90 80 96 78 104 Z" fill="#1d1712" />
+    <path d="M118 56 C114 46 122 40 128 44 C126 48 124 52 118 56 Z" fill="#1d1712" />
+    <!-- round glasses with an accent glare -->
+    <g fill="rgba(125,211,168,0.08)" stroke="#11151a" stroke-width="4">
+      <circle cx="102" cy="110" r="14" />
+      <circle cx="138" cy="110" r="14" />
+    </g>
+    <path d="M116 110 L124 110" stroke="#11151a" stroke-width="4" />
+    <path d="M94 104 L100 100 M130 104 L136 100" style="stroke:var(--action)" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />
+    <circle cx="103" cy="112" r="3" fill="#11151a" /><circle cx="139" cy="112" r="3" fill="#11151a" />
+    <!-- slight smile -->
+    <path d="M110 134 Q120 141 130 134" fill="none" stroke="#8a5a43" stroke-width="3" stroke-linecap="round" />
+    <!-- laptop -->
+    <rect x="0" y="198" width="240" height="60" fill="url(#av-glow)" />
+    <path d="M58 196 L182 196 L192 240 L48 240 Z" fill="#2a323c" />
+    <rect x="50" y="232" width="140" height="8" fill="#1a2027" />
+    <text x="120" y="224" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="20" font-weight="600" style="fill:var(--action)">&lt;/&gt;</text>
+  </g>
+  <circle cx="120" cy="120" r="119" fill="none" style="stroke:var(--border-strong)" stroke-width="2" />
+</svg>
