@@ -1,7 +1,6 @@
 import sharp from 'sharp';
-import { writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { UPLOAD_DIR, MAX_UPLOAD_BYTES } from './config.js';
+import { MAX_UPLOAD_BYTES } from './config.js';
+import { putBlob } from './blobs.js';
 import { addMedia, newMediaId } from './store.js';
 
 const OK = new Set(['jpeg', 'png', 'webp', 'gif', 'avif', 'tiff']);
@@ -23,9 +22,8 @@ export async function saveUpload(file) {
   const base = sharp(input, { limitInputPixels: 60_000_000 }).rotate(); // also strips EXIF
   const full = await base.clone().resize({ width: 1600, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer({ resolveWithObject: true });
   const small = await base.clone().resize({ width: 640, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
-  await writeFile(path.join(UPLOAD_DIR, `${id}.webp`), full.data);
-  await writeFile(path.join(UPLOAD_DIR, `${id}-sm.webp`), small);
+  await Promise.all([putBlob(`${id}.webp`, full.data), putBlob(`${id}-sm.webp`, small)]);
   const name = String(file.name || 'image').replace(/[^\w.\- ]+/g, '').slice(0, 80) || 'image';
-  addMedia({ id, name, width: full.info.width, height: full.info.height, bytes: full.data.length });
+  await addMedia({ id, name, width: full.info.width, height: full.info.height, bytes: full.data.length });
   return { id, url: `/media/${id}.webp`, width: full.info.width, height: full.info.height, name };
 }

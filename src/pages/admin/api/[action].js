@@ -33,47 +33,52 @@ export async function POST(ctx) {
     }
     case 'trash': {
       const bad = needType(); if (bad) return bad;
-      trashItem(id);
+      await trashItem(id);
       return done('ok', 'Moved to trash. You can restore it for 30 days.');
     }
     case 'restore': {
       const bad = needType(); if (bad) return bad;
-      restoreItem(id);
+      await restoreItem(id);
       return done('ok', 'Restored.');
     }
     case 'purge': {
       const bad = needType(); if (bad) return bad;
-      purgeItem(id);
+      await purgeItem(id);
       return done('ok', 'Deleted permanently.');
     }
     case 'move': {
       const bad = needType(); if (bad) return bad;
-      moveItem(type, id, form.get('dir') === 'up' ? 'up' : 'down');
+      await moveItem(type, id, form.get('dir') === 'up' ? 'up' : 'down');
       return ctx.redirect(back, 303);
     }
     case 'duplicate': {
       const bad = needType(); if (bad) return bad;
-      const newId = duplicateItem(type, id);
+      const newId = await duplicateItem(type, id);
       return done('ok', 'Duplicated as a draft.', `/admin/${type}/${newId}`);
     }
     case 'media-delete': {
       const mid = String(form.get('mediaId') || '');
-      const used = mediaUsage(mid);
+      const used = await mediaUsage(mid);
       if (used.length) return done('err', `Still used by ${used.map((u) => u.title).join(', ')}. Remove it there first.`);
-      deleteMedia(mid);
+      try {
+        await deleteMedia(mid);
+      } catch (e) {
+        console.error('[media]', e?.message || e);
+        return done('err', 'Removed from the library, but the file could not be deleted from storage.');
+      }
       return done('ok', 'Image deleted.');
     }
     case 'logout': {
-      destroySession(ctx.locals.owner.id);
+      await destroySession(ctx.locals.owner.id);
       ctx.cookies.delete('sid', { path: '/' });
       return ctx.redirect('/admin/login', 303);
     }
     case 'logout-others': {
-      destroyOthers(ctx.locals.owner.id);
+      await destroyOthers(ctx.locals.owner.id);
       return done('ok', 'Signed out of every other device.');
     }
     case 'logout-all': {
-      destroyAll();
+      await destroyAll();
       ctx.cookies.delete('sid', { path: '/' });
       return ctx.redirect('/admin/login', 303);
     }

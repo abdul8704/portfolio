@@ -108,9 +108,12 @@ export const ENTITIES = {
         help: 'Shown in the post list, search results and link previews.' },
       { key: 'date', label: 'Publish date', type: 'date', required: true, group: 'Basics' },
       { key: 'tags', label: 'Tags', type: 'csv', group: 'Basics' },
+      { key: 'projects', label: 'Related projects', type: 'refs', of: 'project', group: 'Basics',
+        help: 'This post is listed under “Related posts” on each project you tick, and links back to them.' },
       { key: 'image', label: 'Cover image', type: 'image', group: 'Media' },
       { key: 'imageAlt', label: 'Cover description', type: 'text', group: 'Media' },
-      { key: 'body', label: 'Post', type: 'markdown', required: true, group: 'Writing' },
+      { key: 'body', label: 'Post', type: 'markdown', required: true, group: 'Writing',
+        help: 'Add links with [text](https://example.com), or the Link button. Link your own pages with a path, e.g. [AlgoMentor](/projects/algomentor).' },
     ],
   },
 };
@@ -191,6 +194,9 @@ export function coerce(fields, form) {
         break;
       case 'paras':
         val = str.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean).slice(0, 20);
+        break;
+      case 'refs':
+        val = [...new Set(form.getAll(f.key).map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 20);
         break;
       case 'csv':
         val = [...new Set(str.split(/[,\n]/).map((s) => s.trim()).filter(Boolean))].slice(0, 40);

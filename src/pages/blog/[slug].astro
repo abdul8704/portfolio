@@ -2,7 +2,7 @@
 import DetailPage from '../../components/DetailPage.astro';
 import { getBySlug } from '../../lib/store.js';
 
-const item = getBySlug('post', Astro.params.slug, { drafts: !!Astro.locals.owner });
+const item = await getBySlug('post', Astro.params.slug, { drafts: !!Astro.locals.owner });
 if (!item) return Astro.rewrite('/404');
 ---
 <DetailPage type="post" item={item} />

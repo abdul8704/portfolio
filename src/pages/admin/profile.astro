@@ -7,14 +7,14 @@ import { getProfile, saveProfile, listMedia } from '../../lib/store.js';
 import { flash } from '../../lib/http.js';
 
 export const prerender = false;
-let values = getProfile();
+let values = await getProfile();
 let errors = {};
 let hasErrors = false;
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const { data, errors: errs } = coerce(PROFILE_FIELDS, form);
   if (!Object.keys(errs).length) {
-    saveProfile(data);
+    await saveProfile(data);
     flash(Astro, 'ok', 'Site settings saved.');
     return Astro.redirect('/admin/profile', 303);
   }
@@ -29,9 +29,10 @@ for (const f of PROFILE_FIELDS) {
   if (!g) groups.push((g = { name: f.group, fields: [] }));
   g.fields.push(f);
 }
+const media = await listMedia();
 const errList = PROFILE_FIELDS.filter((f) => errors[f.key]);
 ---
-<Admin title="Intro & SEO" active="profile" media={listMedia()}>
+<Admin title="Intro & SEO" active="profile" media={media}>
   <div class="a-head"><div><h1>Intro &amp; SEO</h1><p>Your name, intro text, links and how the site appears in search results and link previews.</p></div></div>
   <div id="restore" class="alert warn restore" role="status"><Icon name="alert" /><div style="flex:1"><strong>You have unsaved changes from earlier.</strong></div><button type="button" class="a-btn sm" data-restore>Restore</button><button type="button" class="a-btn sm ghost" data-discard>Discard</button></div>
   {errList.length > 0 && (

@@ -5,27 +5,27 @@ import { credentials, checkLogin, changePassword, destroyOthers, listSessions } 
 import { flash } from '../../lib/http.js';
 
 export const prerender = false;
-const creds = credentials();
+const creds = await credentials();
 const errors = {};
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const current = String(form.get('current') || '');
   const next = String(form.get('next') || '');
   const again = String(form.get('again') || '');
-  if (!checkLogin(creds.email, current)) errors.current = 'That is not your current password.';
+  if (!await checkLogin(creds.email, current)) errors.current = 'That is not your current password.';
   if (next.length < 10) errors.next = 'Use at least 10 characters. A few random words work well.';
   else if (next === current) errors.next = 'Choose a password you have not used here before.';
   if (next !== again) errors.again = 'The two passwords do not match.';
   if (!Object.keys(errors).length) {
-    changePassword(next);
-    destroyOthers(Astro.locals.owner.id);
+    await changePassword(next);
+    await destroyOthers(Astro.locals.owner.id);
     flash(Astro, 'ok', 'Password changed. Every other device was signed out.');
     return Astro.redirect('/admin/account', 303);
   }
   Astro.response.status = 422;
 }
 const csrf = Astro.locals.owner.csrf;
-const sessions = listSessions();
+const sessions = await listSessions();
 const when = (t) => new Date(t).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 const agent = (a = '') => (/Firefox/.test(a) ? 'Firefox' : /Edg/.test(a) ? 'Edge' : /Chrome/.test(a) ? 'Chrome' : /Safari/.test(a) ? 'Safari' : 'Browser') + (/Mobile|Android|iPhone/.test(a) ? ' on phone' : /Mac/.test(a) ? ' on Mac' : /Windows/.test(a) ? ' on Windows' : /Linux/.test(a) ? ' on Linux' : '');
 ---

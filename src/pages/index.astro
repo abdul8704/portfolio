@@ -10,13 +10,13 @@ import { listItems } from '../lib/store.js';
 import { siteContext, fmtDate, personLd, websiteLd, pageLd, hasPlaceholder } from '../lib/seo.js';
 import { readingMinutes } from '../lib/markdown.js';
 
-const { profile, origin, drafts } = siteContext(Astro);
-const timeline = listItems('timeline', { drafts });
-const projects = listItems('project', { drafts });
-const achievements = listItems('achievement', { drafts });
-const certs = listItems('certification', { drafts });
-const skills = listItems('skill', { drafts });
-const posts = listItems('post', { drafts }).slice(0, 3);
+const { profile, origin, drafts } = await siteContext(Astro);
+const timeline = await listItems('timeline', { drafts });
+const projects = await listItems('project', { drafts });
+const achievements = await listItems('achievement', { drafts });
+const certs = await listItems('certification', { drafts });
+const skills = await listItems('skill', { drafts });
+const posts = (await listItems('post', { drafts })).slice(0, 3);
 const solved = await getSolvedStats(profile.algomentorHandle);
 
 const nav = [
@@ -36,7 +36,7 @@ const description = profile.seoDescription || `${profile.summary} ${profile.abou
 const url = origin + '/';
 const graph = [
   websiteLd(profile, origin),
-  personLd(profile, origin, {
+  await personLd(profile, origin, {
     skills: skills.flatMap((s) => s.items),
     achievements: achievements.map((a) => a.title).filter((t) => !hasPlaceholder(t)),
   }),

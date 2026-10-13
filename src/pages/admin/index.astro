@@ -5,14 +5,15 @@ import { ENTITIES } from '../../lib/entities.js';
 import { counts, findPlaceholders, getProfile, listItems, recentItems } from '../../lib/store.js';
 import { SITE_URL } from '../../lib/config.js';
 import { fmtDate } from '../../lib/seo.js';
+import { range, total } from '../../lib/analytics.js';
 
 export const prerender = false;
-const c = counts();
-const profile = getProfile();
-const placeholders = findPlaceholders();
-const projects = listItems('project', { drafts: true });
+const c = await counts();
+const profile = await getProfile();
+const placeholders = await findPlaceholders();
+const projects = await listItems('project', { drafts: true });
 const missingThumbs = projects.filter((p) => !p.image).length;
-const recent = recentItems(6);
+const recent = await recentItems(6);
 const checklist = [
   { done: !!(SITE_URL || profile.siteUrl), text: 'Set your public site URL (canonical links, sitemap)', href: '/admin/profile#f-siteUrl' },
   { done: placeholders.length === 0, text: `Replace placeholder text${placeholders.length ? ` (${placeholders.length} item${placeholders.length > 1 ? 's' : ''} left)` : ''}`, href: placeholders[0] ? `/admin/${placeholders[0].type}/${placeholders[0].id}` : '/admin' },
@@ -22,6 +23,8 @@ const checklist = [
   { done: !!profile.location, text: 'Add your location (helps search and AI answers)', href: '/admin/profile#f-location' },
 ];
 const remaining = checklist.filter((x) => !x.done).length;
+const wk = range(7);
+const week = { visitors: await total({ kind: 'visit', field: 'visitors', from: wk.from, to: wk.to }), resume: await total({ kind: 'resume', from: wk.from, to: wk.to }) };
 const types = ['project', 'achievement', 'certification', 'timeline', 'skill', 'post'];
 ---
 <Admin title="Dashboard" active="dash">
@@ -41,6 +44,11 @@ const types = ['project', 'achievement', 'certification', 'timeline', 'skill', '
         <span>{c[t].drafts ? `${c[t].drafts} draft${c[t].drafts > 1 ? 's' : ''}` : 'all published'}</span>
       </a>
     ))}
+    <a class="tile" href="/admin/analytics?days=7">
+      <span>Visitors, last 7 days</span>
+      <b>{week.visitors.toLocaleString('en-IN')}</b>
+      <span>{week.resume} résumé open{week.resume === 1 ? '' : 's'} · see analytics</span>
+    </a>
   </div>
 
   <div class="cols">

@@ -1,6 +1,7 @@
 // Owner-only authentication: one account, scrypt password hash, server-side sessions.
 import { scryptSync, randomBytes, timingSafeEqual, createHash, createHmac } from 'node:crypto';
-import { db } from './db.js';
+import { q, one } from './db.js';
+import { bump, peek, ttl, cacheDel } from './cache.js';
 import { getSetting, setSetting } from './store.js';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_PASSWORD_HASH, SESSION_DAYS, sessionSecret } from './config.js';
 
@@ -27,68 +28,63 @@ export function verifyHash(pw, stored) {
 
 let _envHash;
 /** The active credentials: changed-in-app password wins, then env hash, then env plaintext. */
-export function credentials() {
-  const stored = getSetting('admin');
+export async function credentials() {
+  const stored = await getSetting('admin');
   if (stored?.hash) return { email: stored.email || ADMIN_EMAIL, hash: stored.hash };
   if (ADMIN_PASSWORD_HASH) return { email: ADMIN_EMAIL, hash: ADMIN_PASSWORD_HASH };
   if (ADMIN_PASSWORD) return { email: ADMIN_EMAIL, hash: (_envHash ??= hashPassword(ADMIN_PASSWORD)) };
   return null;
 }
-export const isConfigured = () => !!credentials()?.email;
+export const isConfigured = async () => !!(await credentials())?.email;
 
 const DUMMY = hashPassword('not-the-password');
-export function checkLogin(email, password) {
-  const c = credentials();
+export async function checkLogin(email, password) {
+  const c = await credentials();
   // Always run one scrypt so timing doesn't reveal whether the email matched.
   const okPw = verifyHash(String(password || ''), c?.hash || DUMMY);
   const okEmail = !!c && String(email || '').trim().toLowerCase() === c.email.toLowerCase();
   return !!c && okPw && okEmail;
 }
-export function changePassword(newPassword) {
-  const c = credentials();
-  setSetting('admin', { email: c.email, hash: hashPassword(newPassword) });
+export async function changePassword(newPassword) {
+  const c = await credentials();
+  await setSetting('admin', { email: c.email, hash: hashPassword(newPassword) });
 }
 
 /* --------------------------- rate limiting --------------------------- */
-const fails = new Map(); // ip -> { n, until }
+// Failed logins per IP, kept in Redis so the limit holds across restarts and servers.
 const LIMIT = 5;
-const WINDOW = 15 * 60 * 1000;
-export function lockedFor(ip) {
-  const f = fails.get(ip);
-  if (!f) return 0;
-  if (Date.now() > f.until) { fails.delete(ip); return 0; }
-  return f.n >= LIMIT ? Math.ceil((f.until - Date.now()) / 60000) : 0;
+const WINDOW = 15 * 60; // seconds
+const failKey = (ip) => `login-fail:${ip}`;
+export async function lockedFor(ip) {
+  if ((await peek(failKey(ip))) < LIMIT) return 0;
+  return Math.max(1, Math.ceil((await ttl(failKey(ip))) / 60));
 }
-export function recordFailure(ip) {
-  const f = fails.get(ip);
-  if (!f || Date.now() > f.until) fails.set(ip, { n: 1, until: Date.now() + WINDOW });
-  else f.n++;
-}
-export const clearFailures = (ip) => fails.delete(ip);
+export const recordFailure = (ip) => bump(failKey(ip), WINDOW);
+export const clearFailures = (ip) => cacheDel(failKey(ip));
 
 /* ------------------------------ sessions ------------------------------ */
-export function createSession(ip, agent) {
+export async function createSession(ip, agent) {
   const token = randomBytes(32).toString('base64url');
   const t = Date.now();
-  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(t);
-  db.prepare('INSERT INTO sessions (id, created_at, expires_at, last_seen, ip, agent) VALUES (?,?,?,?,?,?)')
-    .run(sha(token), t, t + SESSION_DAYS * DAY, t, ip, String(agent || '').slice(0, 200));
+  await q('DELETE FROM sessions WHERE expires_at < $1', [t]);
+  await q('INSERT INTO sessions (id, created_at, expires_at, last_seen, ip, agent) VALUES ($1,$2,$3,$4,$5,$6)',
+    [sha(token), t, t + SESSION_DAYS * DAY, t, ip, String(agent || '').slice(0, 200)]);
   return { token, maxAge: SESSION_DAYS * 86400 };
 }
-export function getSession(token) {
+export async function getSession(token) {
   if (!token || token.length > 100) return null;
   const id = sha(token);
-  const row = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
+  const row = await one('SELECT * FROM sessions WHERE id = $1', [id]);
   if (!row || row.expires_at < Date.now()) return null;
   if (Date.now() - row.last_seen > 10 * 60 * 1000) {
-    db.prepare('UPDATE sessions SET last_seen = ?, expires_at = ? WHERE id = ?').run(Date.now(), Date.now() + SESSION_DAYS * DAY, id);
+    await q('UPDATE sessions SET last_seen = $1, expires_at = $2 WHERE id = $3', [Date.now(), Date.now() + SESSION_DAYS * DAY, id]);
   }
   return { id, createdAt: row.created_at, csrf: csrfFor(id) };
 }
-export const destroySession = (id) => db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
-export const destroyOthers = (keepId) => db.prepare('DELETE FROM sessions WHERE id != ?').run(keepId);
-export const destroyAll = () => db.prepare('DELETE FROM sessions').run();
-export const listSessions = () => db.prepare('SELECT * FROM sessions WHERE expires_at > ? ORDER BY last_seen DESC').all(Date.now());
+export const destroySession = (id) => q('DELETE FROM sessions WHERE id = $1', [id]);
+export const destroyOthers = (keepId) => q('DELETE FROM sessions WHERE id <> $1', [keepId]);
+export const destroyAll = () => q('DELETE FROM sessions');
+export const listSessions = () => q('SELECT * FROM sessions WHERE expires_at > $1 ORDER BY last_seen DESC', [Date.now()]);
 
 export function csrfFor(sessionId) {
   return createHmac('sha256', sessionSecret()).update('csrf:' + sessionId).digest('hex').slice(0, 40);

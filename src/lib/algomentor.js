@@ -1,7 +1,8 @@
 // AlgoMentor problem-solving stats, fetched on the server so visitors never
-// spend the API's per-IP rate limit. Results are cached in memory; if the API
+// spend the API's per-IP rate limit. Results are cached in Redis; if the API
 // is down we keep showing the last good copy, and with nothing cached the
 // section simply doesn't render.
+import { cacheGet, cacheSet } from './cache.js';
 
 export const ALGOMENTOR_URL = (process.env.ALGOMENTOR_URL || 'https://algomentor.abdul-aziz.dev').replace(/\/+$/, '');
 const TTL_MS = 15 * 60 * 1000; // the API itself refreshes every 3 h; 15 min is plenty
@@ -9,9 +10,21 @@ const RETRY_MS = 60 * 1000; // after a failure, don't hammer the API
 const TIMEOUT_MS = 2500;
 
 const PLATFORM_LABELS = { leetcode: 'LeetCode', codeforces: 'Codeforces', atcoder: 'AtCoder', cses: 'CSES' };
+// Problem-set sizes for platforms with a fixed list, so a card can say "58 / 400".
+// CSES grew to 400 problems in 2025; bump this if it changes.
+export const CATALOG = { cses: 400 };
+// Where the rating is the headline (contest platforms), not the solved count.
+const RATED = new Set(['codeforces', 'atcoder']);
+
 const num = (v) => (Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : 0);
 
-const cache = new Map(); // key -> { at, ok, value }
+// Kept in Redis for a week ({ at, ok, value }) so the last good copy survives restarts;
+// freshness is decided by `at`, not by the Redis expiry.
+const KEEP_SEC = 7 * 86400;
+const cache = {
+  get: (url) => cacheGet(`algomentor:${url}`),
+  set: (url, v) => cacheSet(`algomentor:${url}`, v, KEEP_SEC),
+};
 
 /** Shape the `stats` widget into what the section draws. Tolerates missing fields. */
 export function shapeStats(stats) {
@@ -28,6 +41,8 @@ export function shapeStats(stats) {
         other: solved - easy - medium - hard,
         rating: rating || null,
         maxRating: maxRating || null,
+        catalog: CATALOG[p.platform] || null,
+        headline: RATED.has(p.platform) && rating ? 'rating' : CATALOG[p.platform] ? 'catalog' : 'solved',
       };
     })
     .filter((p) => p.solved > 0)
@@ -44,7 +59,7 @@ export async function getSolvedStats(handle, base = ALGOMENTOR_URL) {
   handle = String(handle || '').trim().toLowerCase();
   if (!/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])$/.test(handle)) return null;
   const url = `${base.replace(/\/+$/, '')}/api/public/v1/users/${encodeURIComponent(handle)}/stats`;
-  const hit = cache.get(url);
+  const hit = await cache.get(url);
   const now = Date.now();
   if (hit && now - hit.at < (hit.ok ? TTL_MS : RETRY_MS)) return hit.value;
 
@@ -52,20 +67,20 @@ export async function getSolvedStats(handle, base = ALGOMENTOR_URL) {
     const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (res.status === 404) {
       // turned off, renamed, or the stats widget is hidden: stop showing it
-      cache.set(url, { at: now, ok: true, value: null });
+      await cache.set(url, { at: now, ok: true, value: null });
       return null;
     }
     if (!res.ok) throw new Error(`AlgoMentor API ${res.status}`);
     const body = await res.json();
     const value = shapeStats(body?.data);
     if (value) value.fetchedAt = body?.meta?.servedAt || new Date().toISOString();
-    cache.set(url, { at: now, ok: true, value });
+    await cache.set(url, { at: now, ok: true, value });
     return value;
   } catch (err) {
     console.warn('[algomentor]', err?.message || err);
     // keep the last good copy if there is one
     const value = hit?.value ?? null;
-    cache.set(url, { at: now, ok: false, value });
+    await cache.set(url, { at: now, ok: false, value });
     return value;
   }
 }

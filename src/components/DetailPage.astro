@@ -7,7 +7,7 @@ import { renderMarkdown, readingMinutes } from '../lib/markdown.js';
 import { abs, fmtDate, itemLd, personLd, websiteLd, crumbsLd, pageLd, siteContext } from '../lib/seo.js';
 
 const { type, item } = Astro.props;
-const { profile, origin, drafts } = siteContext(Astro);
+const { profile, origin, drafts } = await siteContext(Astro);
 const cfg = ENTITIES[type];
 const title = item[cfg.titleField];
 const desc = item.blurb || item.note || item.description || '';
@@ -17,11 +17,19 @@ const toc = headings.filter((h) => h.level <= 3);
 const path = `${cfg.base}/${item.slug}`;
 const url = origin + path;
 
-const siblings = listItems(type, { drafts });
+const siblings = await listItems(type, { drafts });
 const idx = siblings.findIndex((s) => s.id === item.id);
 const prev = idx > 0 ? siblings[idx - 1] : null;
 const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
 const label = (it) => it[cfg.titleField];
+
+// Posts tick the projects they belong to; project pages list those posts, posts link back.
+const relatedPosts = type === 'project'
+  ? (await listItems('post', { drafts })).filter((p) => (p.projects || []).map(Number).includes(item.id))
+  : [];
+const relatedProjects = isPost && item.projects?.length
+  ? (await listItems('project', { drafts })).filter((p) => item.projects.map(Number).includes(p.id))
+  : [];
 
 const facts = {
   project: [['Stack', item.stack?.join(', ')], ['Result', item.outcome]],
@@ -41,7 +49,7 @@ const pageTitle = isPost ? `${title} | ${profile.name}` : `${title}: ${cfg.label
 const image = item.image || profile.ogImage;
 const graph = [
   websiteLd(profile, origin),
-  personLd(profile, origin),
+  await personLd(profile, origin),
   pageLd(url, pageTitle, desc, origin, image ? abs(origin, image) : ''),
   itemLd(type, item, origin, profile),
   crumbsLd(origin, crumbs),
@@ -77,6 +85,11 @@ const morph = `t-${type}-${item.slug}`;
             {item.tags?.length > 0 && <span>{item.tags.join(', ')}</span>}
           </p>
         )}
+        {relatedProjects.length > 0 && (
+          <p class="from-project">From the project{relatedProjects.length > 1 && 's'}{' '}
+            {relatedProjects.map((p, i) => <>{i > 0 && ', '}<a href={`/projects/${p.slug}`}>{p.name}</a></>)}
+          </p>
+        )}
       </header>
 
       {(item.image || !isPost) && (
@@ -106,6 +119,22 @@ const morph = `t-${type}-${item.slug}`;
       {html && <div class="prose" set:html={html} />}
       {!html && !isPost && <p class="prose" style="color:var(--content-secondary)">A full write-up is coming soon.</p>}
     </article>
+
+    {relatedPosts.length > 0 && (
+      <section class="related" aria-labelledby="related-h">
+        <h2 id="related-h">Related posts</h2>
+        <p class="lede">What I ran into while building {title}, and how I solved it.</p>
+        <ul class="post-list dim-list">
+          {relatedPosts.map((p) => (
+            <li class="post dim-item" data-cursor-label="Read">
+              <span class="card-kicker"><time datetime={p.date}>{fmtDate(p.date)}</time> · {readingMinutes(p.body)} min read{!p.published && ' · Draft'}</span>
+              <h3><a href={`/blog/${p.slug}`}>{p.title}</a> <span class="arrow" aria-hidden="true">↗</span></h3>
+              <p>{p.description}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     {(prev || next) && (
       <nav class="pager" aria-label={`More ${cfg.plural.toLowerCase()}`}>

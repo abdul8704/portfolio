@@ -4,13 +4,13 @@ import { listItems } from '../../lib/store.js';
 import { siteContext, fmtDate, websiteLd, personLd, crumbsLd, pageLd } from '../../lib/seo.js';
 import { readingMinutes } from '../../lib/markdown.js';
 
-const { profile, origin, drafts } = siteContext(Astro);
-const posts = listItems('post', { drafts });
+const { profile, origin, drafts } = await siteContext(Astro);
+const posts = await listItems('post', { drafts });
 const title = `Blog | ${profile.name}`;
 const description = `Notes on backends, systems and AI pipelines by ${profile.name}, ${profile.role}.`;
 const graph = [
   websiteLd(profile, origin),
-  personLd(profile, origin),
+  await personLd(profile, origin),
   pageLd(`${origin}/blog`, title, description, origin),
   { '@type': 'Blog', '@id': `${origin}/blog#blog`, url: `${origin}/blog`, name: `${profile.name}'s blog`, description, publisher: { '@id': `${origin}/#person` },
     blogPost: posts.filter((p) => p.published).map((p) => ({ '@type': 'BlogPosting', headline: p.title, url: `${origin}/blog/${p.slug}`, datePublished: p.date })) },

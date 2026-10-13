@@ -10,15 +10,22 @@
     "dev": "astro dev",
     "build": "astro build",
     "start": "node dist/server/entry.mjs",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "load-resume": "node scripts/load-resume.mjs",
+    "media-to-s3": "node scripts/media-to-s3.mjs",
+    "sqlite-to-postgres": "node scripts/sqlite-to-postgres.mjs",
+    "db:up": "docker compose up -d"
   },
   "dependencies": {
-    "astro": "^7.3.5",
     "@astrojs/node": "^11.1.6",
-    "sharp": "^0.35.5",
-    "markdown-it": "^15.0.2",
-    "@shikijs/markdown-it": "^4.5.0",
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.3.0"
+    "@shikijs/markdown-it": "^4.5.0",
+    "astro": "^7.3.5",
+    "markdown-it": "^15.0.2",
+    "pg": "^8.23.1",
+    "redis": "^4.7.1",
+    "sharp": "^0.35.5"
   }
 }

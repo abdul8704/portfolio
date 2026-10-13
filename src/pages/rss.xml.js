@@ -6,9 +6,9 @@ export const prerender = false;
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export async function GET({ url }) {
-  const profile = getProfile();
+  const profile = await getProfile();
   const origin = originOf(url, profile);
-  const posts = listItems('post');
+  const posts = await listItems('post');
   const items = [];
   for (const p of posts.slice(0, 30)) {
     const { html } = await renderMarkdown(p.body);

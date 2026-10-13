@@ -3,7 +3,7 @@ import Admin from '../../../layouts/Admin.astro';
 import Icon from '../../../components/admin/Icon.astro';
 import Field from '../../../components/admin/Field.astro';
 import { ENTITIES, coerce, slugify } from '../../../lib/entities.js';
-import { getItem, saveItem, listMedia } from '../../../lib/store.js';
+import { getItem, saveItem, listMedia, listItems } from '../../../lib/store.js';
 import { flash } from '../../../lib/http.js';
 import { legacyMonths } from '../../../lib/timeline.js';
 
@@ -12,14 +12,18 @@ const { type, id } = Astro.params;
 const cfg = ENTITIES[type];
 if (!cfg) return Astro.rewrite('/404');
 const isNew = id === 'new';
-const item = isNew ? null : getItem(type, id);
+// fields that point at other items (a post's related projects) get their choices here
+const fields = await Promise.all(cfg.fields.map(async (f) => f.type === 'refs'
+  ? { ...f, choices: (await listItems(f.of, { drafts: true })).map((x) => ({ id: x.id, label: x[ENTITIES[f.of].titleField] || 'Untitled', published: x.published })) }
+  : f));
+const item = isNew ? null : await getItem(type, id);
 if (!isNew && (!item || item.deletedAt)) return Astro.rewrite('/404');
 
 const today = new Date().toISOString().slice(0, 10);
 let values = item ?? {
   published: type !== 'post',
   slug: '',
-  ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.key === 'date' ? today : f.type === 'select' ? f.options[0] : ''])),
+  ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.key === 'date' ? today : f.type === 'select' ? f.options[0] : f.type === 'refs' ? [] : ''])),
 };
 // entries saved before start/end existed: pre-fill the months from the old period text
 if (type === 'timeline' && item) values = { ...values, ...legacyMonths(item) };
@@ -33,22 +37,22 @@ if (Astro.request.method === 'POST') {
   const published = form.get('published') === 'on';
   slugValue = String(form.get('slug') || '').trim();
   if (Object.keys(errs).length === 0) {
-    const newId = saveItem(type, isNew ? null : id, { data, published, slug: slugValue });
+    const newId = await saveItem(type, isNew ? null : id, { data, published, slug: slugValue });
     flash(Astro, 'ok', isNew ? `${cfg.label} created.` : 'Changes saved.');
     return Astro.redirect(`/admin/${type}/${newId}`, 303);
   }
   errors = errs;
   hasErrors = true;
   // keep exactly what was typed so nothing is lost
-  values = { published, ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.type === 'checkbox' ? form.get(f.key) === 'on' : String(form.get(f.key) ?? '')])) };
+  values = { published, ...Object.fromEntries(cfg.fields.map((f) => [f.key, f.type === 'checkbox' ? form.get(f.key) === 'on' : f.type === 'refs' ? form.getAll(f.key) : String(form.get(f.key) ?? '')])) };
   Astro.response.status = 422;
 }
 
 const justSaved = Astro.cookies.get('flash')?.value?.includes('"ok"');
-const media = listMedia();
+const media = await listMedia();
 const title = isNew ? `New ${cfg.label.toLowerCase()}` : item[cfg.titleField];
 const groups = [];
-for (const f of cfg.fields) {
+for (const f of fields) {
   let g = groups.find((x) => x.name === f.group);
   if (!g) groups.push((g = { name: f.group, fields: [] }));
   g.fields.push(f);

@@ -85,7 +85,7 @@ if (form) {
             if (el.type === 'checkbox' && el.name && !el.name.startsWith('_')) el.checked = false;
             return;
           }
-          if (el.type === 'checkbox') el.checked = true; else el.value = m.get(el.name);
+          if (el.type === 'checkbox') el.checked = el.value === 'on' || saved.values.some(([k, v]) => k === el.name && v === el.value); else el.value = m.get(el.name);
           el.dispatchEvent(new Event('input', { bubbles: true }));
         });
         banner.classList.remove('show'); mark();

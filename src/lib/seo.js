@@ -7,7 +7,7 @@ import { plainText } from './markdown.js';
 export const hasPlaceholder = (s) => /\[[^\]]{2,}\]/.test(String(s ?? ''));
 const clean = (arr) => arr.filter((x) => x && !hasPlaceholder(x));
 
-export function originOf(url, profile = getProfile()) {
+export function originOf(url, profile) {
   return SITE_URL || (profile.siteUrl || '').replace(/\/+$/, '') || url.origin;
 }
 export const abs = (origin, p) => (!p ? '' : /^https?:\/\//.test(p) ? p : origin + p);
@@ -25,16 +25,16 @@ export function fmtDate(iso, opts = { day: 'numeric', month: 'short', year: 'num
 }
 
 /** Everything a public page needs, in one call. */
-export function siteContext(Astro) {
-  const profile = getProfile();
+export async function siteContext(Astro) {
+  const profile = await getProfile();
   const origin = originOf(Astro.url, profile);
   const owner = !!Astro.locals.owner;
   return { profile, origin, owner, drafts: owner };
 }
 
-export function personLd(profile, origin, { skills = [], achievements = [] } = {}) {
+export async function personLd(profile, origin, { skills = [], achievements = [] } = {}) {
   const sameAs = clean((profile.socials || []).map((s) => s.href)).filter((h) => /^https?:/.test(h) && !/your-handle/.test(h));
-  const timeline = listItems('timeline');
+  const timeline = await listItems('timeline');
   const school = timeline.find((t) => t.kind === 'education' && !hasPlaceholder(t.org));
   const job = timeline.find((t) => t.kind === 'work' && !hasPlaceholder(t.org));
   return {
@@ -103,7 +103,7 @@ export const ldScript = (graph) =>
   JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 
 /* ------------------------ llms.txt / llms-full.txt ------------------------ */
-function lines(origin, profile, full) {
+async function lines(origin, profile, full) {
   const out = [];
   out.push(`# ${profile.name}: ${profile.role}`, '', `> ${profile.seoDescription || profile.summary}`, '');
   if (profile.location) out.push(`Location: ${profile.location}`);
@@ -111,9 +111,9 @@ function lines(origin, profile, full) {
   if (profile.email) out.push(`Contact: ${profile.email}`);
   for (const s of profile.socials || []) out.push(`${s.label}: ${s.href}`);
   out.push('', '## About', '', ...(profile.about || []).flatMap((p) => [p, '']));
-  const skills = listItems('skill');
+  const skills = await listItems('skill');
   if (skills.length) out.push('## Core stack', '', ...skills.map((s) => `- ${s.group}: ${s.items.join(', ')}`), '');
-  const tl = listItems('timeline');
+  const tl = await listItems('timeline');
   if (tl.length) {
     out.push('## Timeline', '');
     for (const t of tl) out.push(`- ${t.period}: ${t.title}, ${t.org}${t.points?.length ? '. ' + t.points.join(' ') : ''}`);
@@ -122,7 +122,7 @@ function lines(origin, profile, full) {
   const sections = [['project', 'Projects'], ['achievement', 'Achievements'], ['certification', 'Certifications'], ['post', 'Writing']];
   for (const [type, heading] of sections) {
     const cfg = ENTITIES[type];
-    const items = listItems(type);
+    const items = await listItems(type);
     if (!items.length) continue;
     out.push(`## ${heading}`, '');
     for (const it of items) {

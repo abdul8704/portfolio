@@ -17,8 +17,8 @@ import { getProfile } from '../lib/store.js';
 const { title, active = '', bare = false, media = null } = Astro.props;
 const owner = Astro.locals.owner;
 const flashMsg = takeFlash(Astro);
-const profile = getProfile();
-const c = bare ? {} : counts();
+const profile = await getProfile();
+const c = bare ? {} : await counts();
 const content = ['project', 'achievement', 'certification', 'timeline', 'skill', 'post'];
 ---
 <!doctype html>
@@ -48,6 +48,7 @@ const content = ['project', 'achievement', 'certification', 'timeline', 'skill',
           <div class="a-brand"><i>{profile.name.slice(0, 1)}</i><span>{profile.name}<small>Content admin</small></span></div>
           <nav class="a-nav" aria-label="Admin">
             <a href="/admin" aria-current={active === 'dash' ? 'page' : undefined}><Icon name="dash" />Dashboard</a>
+            <a href="/admin/analytics" aria-current={active === 'analytics' ? 'page' : undefined}><Icon name="chart" />Analytics</a>
             <h2>Content</h2>
             {content.map((t) => (
               <a href={`/admin/${t}`} aria-current={active === t ? 'page' : undefined}>

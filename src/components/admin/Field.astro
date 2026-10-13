@@ -21,7 +21,22 @@ const inputType = { email: 'email', url: 'url', date: 'date', month: 'month' }[f
 const placeholder = { month: 'YYYY-MM', url: 'https://', pairs: 'GitHub | https://github.com/you', csv: 'one, two, three' }[f.type];
 ---
 <div class="field">
-  {f.type === 'checkbox' ? (
+  {f.type === 'refs' ? (
+    <fieldset class="refs" aria-describedby={describedby}>
+      <legend><span>{f.label}</span><span class="opt">optional</span></legend>
+      {f.choices?.length ? (
+        <div class="refs-list">
+          {f.choices.map((c) => (
+            <label class="check">
+              <input type="checkbox" name={f.key} value={c.id} checked={(value || []).map(Number).includes(c.id)} />
+              <span>{c.label}{!c.published && <span class="opt"> draft</span>}</span>
+            </label>
+          ))}
+        </div>
+      ) : <p class="muted">No projects yet. Add one under Projects first.</p>}
+      {f.help && <p class="help" id={`${id}-help`}>{f.help}</p>}
+    </fieldset>
+  ) : f.type === 'checkbox' ? (
     <label class="check">
       <input type="checkbox" id={id} name={f.key} checked={value === true || value === 'on'} aria-describedby={describedby} />
       <span><strong>{f.label}</strong>{f.help && <span class="help" id={`${id}-help`} style="display:block">{f.help}</span>}</span>

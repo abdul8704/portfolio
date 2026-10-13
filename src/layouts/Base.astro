@@ -9,7 +9,7 @@ import '../styles/site.css';
 import Seo from '../components/Seo.astro';
 import { ldScript } from '../lib/seo.js';
 
-const { seo, profile, graph = [], motion = true, owner = false } = Astro.props;
+const { seo, profile, graph = [], motion = true, owner = false, track = true } = Astro.props;
 const noindex = seo.noindex || !profile.indexable;
 ---
 <!doctype html>
@@ -24,13 +24,14 @@ const noindex = seo.noindex || !profile.indexable;
     <!-- Content stays visible without JS; animation only arms when JS is on. -->
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>
-  <body>
+  <body data-track={track && !owner ? '' : undefined} data-resume={profile.resume || undefined}>
     <a class="skip-link" href="#main">Skip to content</a>
     {motion && <div class="progress" aria-hidden="true"><i></i></div>}
     <slot />
     {owner && <a href="/admin" class="admin-pill" style="position:fixed;right:16px;bottom:16px;z-index:70;background:var(--surface-raised-2);border:1px solid var(--action-line);color:var(--action);padding:10px 14px;border-radius:999px;font:500 12px/1 var(--font-mono);">Edit in admin</a>}
     <script>
       import '../scripts/motion.js';
+      import '../scripts/track.js';
     </script>
   </body>
 </html>

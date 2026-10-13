@@ -5,13 +5,13 @@ export const prerender = false;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function GET({ url }) {
-  const profile = getProfile();
+export async function GET({ url }) {
+  const profile = await getProfile();
   if (!profile.indexable) return new Response('Not found', { status: 404 });
   const origin = originOf(url, profile);
   const entries = [{ loc: origin + '/', priority: '1.0' }, { loc: origin + '/blog', priority: '0.8' }];
   for (const type of ['project', 'achievement', 'certification', 'post']) {
-    for (const it of listItems(type)) {
+    for (const it of await listItems(type)) {
       entries.push({
         loc: `${origin}${ENTITIES[type].base}/${it.slug}`,
         lastmod: new Date(it.updatedAt).toISOString().slice(0, 10),

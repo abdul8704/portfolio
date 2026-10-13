@@ -5,8 +5,8 @@ export const prerender = false;
 // Search and AI crawlers are welcome by name so the intent is unambiguous.
 const BOTS = ['Googlebot', 'Bingbot', 'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-SearchBot', 'Claude-User', 'PerplexityBot', 'Google-Extended', 'Applebot', 'Applebot-Extended', 'CCBot', 'cohere-ai', 'Meta-ExternalAgent', 'Amazonbot', 'DuckDuckBot'];
 
-export function GET({ url }) {
-  const profile = getProfile();
+export async function GET({ url }) {
+  const profile = await getProfile();
   const origin = originOf(url, profile);
   const body = profile.indexable
     ? [

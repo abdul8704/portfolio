@@ -1,18 +1,35 @@
 ---
-// Problem-solving stats from AlgoMentor: one big total, the difficulty split,
-// and a row per platform, then a link out to the full dashboard.
+// Problem-solving stats from AlgoMentor. One total up top, then a card per
+// platform. Cards are all the same size and never share a scale: each leads
+// with the number that matters there (contest rating, share of a fixed problem
+// set, or solved count), and its difficulty bar is a split of that platform only,
+// so a big practice site doesn't dwarf a small, hard one.
 import { ALGOMENTOR_URL } from '../lib/algomentor.js';
 const { stats, link, num } = Astro.props;
 const fmt = (n) => n.toLocaleString('en-US');
 const pct = (n, of) => (of > 0 ? (n / of) * 100 : 0);
-const diffs = [
-  ['easy', 'Easy', stats.easy],
-  ['medium', 'Medium', stats.medium],
-  ['hard', 'Hard', stats.hard],
-  ['other', 'Unrated', stats.other],
-].filter(([, , n]) => n > 0);
+const split = (s) =>
+  [['easy', 'Easy', s.easy], ['medium', 'Medium', s.medium], ['hard', 'Hard', s.hard], ['other', 'Unrated', s.other]]
+    .filter(([, , n]) => n > 0);
+const diffs = split(stats);
 const href = link || ALGOMENTOR_URL;
 const n = stats.platforms.length;
+
+function head(p) {
+  if (p.headline === 'rating') return {
+    value: fmt(p.rating), unit: 'rating',
+    sub: [p.maxRating && p.maxRating > p.rating && `peak ${fmt(p.maxRating)}`, `${fmt(p.solved)} solved`],
+  };
+  if (p.headline === 'catalog') return {
+    value: fmt(p.solved), of: fmt(p.catalog), unit: 'of the problem set',
+    sub: [`${Math.round(pct(p.solved, p.catalog))}% complete`],
+    progress: Math.min(100, pct(p.solved, p.catalog)),
+  };
+  return {
+    value: fmt(p.solved), unit: 'solved',
+    sub: [p.hard && `${fmt(p.hard)} hard`, p.rating && `contest rating ${fmt(p.rating)}`],
+  };
+}
 ---
 <section id="problem-solving" aria-labelledby="h-solving">
   <h2 class="section-title" id="h-solving"><b>{num}</b>Problem solving</h2>
@@ -33,23 +50,36 @@ const n = stats.platforms.length;
     </div>
 
     {n > 0 && (
-      <ul class="ps-platforms" data-stagger>
-        {stats.platforms.map((p) => (
-          <li class="ps-row">
-            <span class="ps-name">{p.label}</span>
-            <span class="ps-track" aria-hidden="true">
-              <span class="ps-fill" style={`--w:${pct(p.solved, stats.maxPlatform).toFixed(2)}%`}>
-                {[['easy', p.easy], ['medium', p.medium], ['hard', p.hard], ['other', p.other]].filter(([, v]) => v > 0)
-                  .map(([k, v]) => <i class={`d-${k}`} style={`--w:${pct(v, p.solved).toFixed(2)}%`}></i>)}
-              </span>
-            </span>
-            <span class="ps-count"><b>{fmt(p.solved)}</b> solved</span>
-            <span class="ps-meta">
-              {[p.easy && `${fmt(p.easy)} easy`, p.medium && `${fmt(p.medium)} medium`, p.hard && `${fmt(p.hard)} hard`].filter(Boolean).join(' · ')}
-              {p.rating && <span class="ps-rating">rating {fmt(p.rating)}{p.maxRating && p.maxRating > p.rating && ` · peak ${fmt(p.maxRating)}`}</span>}
-            </span>
-          </li>
-        ))}
+      <ul class="ps-cards" data-stagger>
+        {stats.platforms.map((p) => {
+          const h = head(p);
+          const d = split(p).filter(([k]) => k !== 'other' || p.easy + p.medium + p.hard > 0);
+          return (
+            <li class={`ps-card ps-${p.key}`}>
+              <span class="ps-name">{p.label}</span>
+              <p class="ps-big">
+                <b>{h.value}</b>{h.of && <span class="ps-of">/ {h.of}</span>}
+                <span class="ps-unit">{h.unit}</span>
+              </p>
+              {h.progress != null && (
+                <span class="ps-progress" role="img" aria-label={`${h.sub[0]}`}><i style={`--w:${h.progress.toFixed(2)}%`}></i></span>
+              )}
+              <p class="ps-sub">{h.sub.filter(Boolean).join(' · ')}</p>
+              {d.length > 0 ? (
+                <div class="ps-mix">
+                  <span class="ps-bar ps-bar-sm" role="img" aria-label={`${p.label} by difficulty: ${d.map(([, l, v]) => `${l} ${v}`).join(', ')}`}>
+                    {d.map(([k, , v]) => <i class={`d-${k}`} style={`--w:${pct(v, p.solved).toFixed(2)}%`}></i>)}
+                  </span>
+                  <span class="ps-mix-t" aria-hidden="true">
+                    {d.map(([k, l, v]) => <span class={`d-${k}`}>{fmt(v)} {l.toLowerCase()}</span>)}
+                  </span>
+                </div>
+              ) : (
+                <p class="ps-mix-none">No difficulty labels on this platform</p>
+              )}
+            </li>
+          );
+        })}
       </ul>
     )}
 

@@ -17,7 +17,7 @@ const CSP = [
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;
   const token = ctx.cookies.get('sid')?.value;
-  ctx.locals.owner = token ? getSession(token) : null;
+  ctx.locals.owner = token ? await getSession(token) : null;
 
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   const isLogin = pathname === '/admin/login';

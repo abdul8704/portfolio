@@ -1,0 +1,75 @@
+# Production: runs only the portfolio. It joins the Postgres and Redis containers that your
+# other stack already runs (shared-postgres, shared-redis on the external shared_services
+# network) and keeps its data in its own database ("portfolio") and its own Redis db (1).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Needs in .env (next to this file), on top of the usual ADMIN_*, SESSION_SECRET, SITE_URL:
+#   POSTGRES_USER / POSTGRES_PASSWORD   the shared Postgres admin login (same as your other stack)
+#   REDIS_PASSWORD                      the shared Redis password (same as your other stack)
+#   PORTFOLIO_DB_PASSWORD               a new password for the portfolio's own database user
+# Keep passwords URL-safe (letters, digits, - and _), since they go into connection URLs.
+
+services:
+  # One-off job: creates the portfolio's database and user in the shared Postgres if they
+  # don't exist yet, then exits. Safe to run on every deploy.
+  portfolio-db-init:
+    container_name: portfolio-db-init
+    image: postgres:17-alpine
+    restart: "no"
+    environment:
+      PGHOST: shared-postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: postgres
+      DB_NAME: ${PORTFOLIO_DB:-portfolio}
+      DB_USER: ${PORTFOLIO_DB_USER:-portfolio}
+      DB_PASS: ${PORTFOLIO_DB_PASSWORD}
+    command:
+      - sh
+      - -c
+      - |
+        until pg_isready -q; do echo "waiting for shared-postgres"; sleep 2; done
+        psql -v ON_ERROR_STOP=1 -v db="$$DB_NAME" -v user="$$DB_USER" -v pass="$$DB_PASS" <<'SQL'
+        SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'user', :'pass')
+          WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'user') \gexec
+        SELECT format('CREATE DATABASE %I OWNER %I', :'db', :'user')
+          WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'db') \gexec
+        SQL
+    networks:
+      - shared_services
+
+  portfolio:
+    container_name: portfolio
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:${PORTFOLIO_PORT:-4321}:4321"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4321
+      DATA_DIR: /data
+      # Its own database inside the shared-postgres container
+      DATABASE_URL: postgresql://${PORTFOLIO_DB_USER:-portfolio}:${PORTFOLIO_DB_PASSWORD}@shared-postgres:5432/${PORTFOLIO_DB:-portfolio}
+      # Shared Redis, but its own logical db (1) plus a key prefix, so nothing clashes with your other app
+      REDIS_URL: redis://:${REDIS_PASSWORD}@shared-redis:6379/${PORTFOLIO_REDIS_DB:-1}
+      REDIS_PREFIX: "portfolio:"
+      # Behind nginx/Caddy on the same box: read the visitor IP from X-Forwarded-For
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    volumes:
+      # Uploaded images (when S3 is off), the old SQLite file for the one-time copy, backups
+      - ./data:/data
+    depends_on:
+      portfolio-db-init:
+        condition: service_completed_successfully
+    networks:
+      - shared_services
+
+networks:
+  shared_services:
+    external: true

@@ -5,7 +5,7 @@ import { listMedia, mediaUsage } from '../../lib/store.js';
 import { ENTITIES } from '../../lib/entities.js';
 
 export const prerender = false;
-const media = listMedia().map((m) => ({ ...m, used: mediaUsage(m.id) }));
+const media = await Promise.all((await listMedia()).map(async (m) => ({ ...m, used: await mediaUsage(m.id) })));
 const csrf = Astro.locals.owner.csrf;
 const kb = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e3)} KB`);
 ---

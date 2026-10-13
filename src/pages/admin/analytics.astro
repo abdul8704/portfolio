@@ -1,0 +1,187 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import Icon from '../../components/admin/Icon.astro';
+import { ENTITIES } from '../../lib/entities.js';
+import { listItems, getProfile } from '../../lib/store.js';
+import { range, series, total, top, hasAnyHits, TZ } from '../../lib/analytics.js';
+
+export const prerender = false;
+const q = Astro.url.searchParams;
+const days = [7, 30, 90].includes(Number(q.get('days'))) ? Number(q.get('days')) : 30;
+const METRICS = {
+  visitors: { label: 'Visitors', kind: 'visit', field: 'visitors', unit: ['visitor', 'visitors'], help: 'Different people per day' },
+  views: { label: 'Page views', kind: 'visit', field: 'count', unit: ['view', 'views'], help: 'Every page opened' },
+  resume: { label: 'Résumé opens', kind: 'resume', field: 'count', unit: ['open', 'opens'], help: 'Clicks on your résumé link' },
+  out: { label: 'Link clicks', kind: 'out', field: 'count', unit: ['click', 'clicks'], help: 'GitHub, LinkedIn, demos, email…' },
+};
+const metric = METRICS[q.get('metric')] ? q.get('metric') : 'visitors';
+const target = metric === 'resume' ? null : q.get('target') || null;
+const r = range(days);
+
+// page path -> readable name
+const names = new Map([['/', 'Home'], ['/blog', 'Blog (all posts)']]);
+const pageType = new Map();
+for (const [t, cfg] of Object.entries(ENTITIES)) {
+  if (!cfg.detail) continue;
+  for (const it of await listItems(t, { drafts: true })) {
+    names.set(`${cfg.base}/${it.slug}`, it[cfg.titleField]);
+    pageType.set(`${cfg.base}/${it.slug}`, t);
+  }
+}
+const profile = await getProfile();
+const linkNames = new Map((profile.socials || []).map((s) => {
+  try { const u = new URL(s.href); return [u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/+$/, ''), s.label]; } catch { return [s.href, s.label]; }
+}));
+const linkName = (t) => (t === 'email' ? 'Email (mailto link)' : linkNames.get(t) || null);
+
+// tiles, with the previous period for comparison
+const tiles = await Promise.all(Object.entries(METRICS).map(async ([key, m]) => {
+  const now = await total({ kind: m.kind, field: m.field, from: r.from, to: r.to });
+  const before = await total({ kind: m.kind, field: m.field, from: r.prevFrom, to: r.prevTo });
+  const delta = before ? Math.round(((now - before) / before) * 100) : null;
+  return { key, ...m, now, before, delta };
+}));
+
+// the chart
+const m = METRICS[metric];
+const chartKind = target && metric === 'views' ? 'view' : target && metric === 'visitors' ? 'view' : m.kind;
+const data = await series({ kind: chartKind, target: target ?? undefined, field: m.field, from: r.from, to: r.to });
+const sum = data.reduce((a, d) => a + d.n, 0);
+const peak = Math.max(0, ...data.map((d) => d.n));
+const niceMax = (n) => {
+  if (n <= 4) return 4;
+  const p = 10 ** Math.floor(Math.log10(n));
+  for (const k of [1, 1.2, 1.6, 2, 2.4, 3, 4, 5, 6, 8, 10]) if (k * p >= n) return k * p;
+  return 10 * p;
+};
+const yMax = niceMax(peak);
+const ticks = [yMax, yMax / 2, 0];
+const fmtD = (d, opts) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', ...opts });
+const every = days === 7 ? 1 : days === 30 ? 7 : 15;
+const unit = (n, u) => `${n.toLocaleString('en-IN')} ${n === 1 ? u[0] : u[1]}`;
+const targetName = target ? (names.get(target) || linkName(target) || target) : null;
+const chartTitle = target ? `${targetName}: ${metric === 'out' ? 'clicks' : metric === 'visitors' ? 'visitors' : 'views'} per day` : `${m.label} per day`;
+
+// ranked lists
+const views = await top({ kind: 'view', from: r.from, to: r.to, limit: 500 });
+const viewsBy = new Map(views.map((v) => [v.target, v]));
+const rowsFor = async (type) => (await listItems(type, { drafts: false })).map((it) => {
+  const path = `${ENTITIES[type].base}/${it.slug}`;
+  return { path, name: it[ENTITIES[type].titleField], ...(viewsBy.get(path) ?? { count: 0, visitors: 0 }) };
+}).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+const projects = await rowsFor('project');
+const posts = await rowsFor('post');
+const other = views.filter((v) => pageType.get(v.target) !== 'project' && pageType.get(v.target) !== 'post')
+  .map((v) => ({ path: v.target, name: names.get(v.target) || v.target, ...v }));
+const links = await top({ kind: 'out', from: r.from, to: r.to, limit: 30 });
+const refs = await top({ kind: 'ref', from: r.from, to: r.to, limit: 20 });
+const empty = !await hasAnyHits();
+
+const href = (o) => {
+  const p = new URLSearchParams({ days: String(days), metric, ...(target ? { target } : {}), ...o });
+  for (const [k, v] of [...p]) if (v === '' || v == null) p.delete(k);
+  return `/admin/analytics?${p}#chart`;
+};
+const tables = [
+  { id: 'projects', title: 'Projects', note: 'How often each project page was opened.', rows: projects, col: 'Views', metric: 'views' },
+  { id: 'posts', title: 'Blog posts', note: 'Posts are listed on the projects you link them to.', rows: posts, col: 'Views', metric: 'views', emptyText: 'No published posts yet.' },
+  { id: 'pages', title: 'Other pages', note: 'Home, the blog list, achievements and certifications.', rows: other, col: 'Views', metric: 'views' },
+  { id: 'links', title: 'Links clicked', note: 'Links that take visitors off your site.', rows: links.map((l) => ({ path: l.target, name: linkName(l.target) || l.target, sub: linkName(l.target) ? l.target : '', count: l.count, visitors: l.visitors })), col: 'Clicks', metric: 'out' },
+  { id: 'refs', title: 'Where visitors come from', note: 'The site a visitor was on before landing here. “Direct” means a typed address, a bookmark or an app that hides it.', rows: refs.map((x) => ({ path: null, name: x.target === 'direct' ? 'Direct' : x.target, count: x.count, visitors: x.visitors })), col: 'Visits', metric: null },
+];
+const fmtRange = `${fmtD(r.from, { day: 'numeric', month: 'short' })} – ${fmtD(r.to, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+---
+<Admin title="Analytics" active="analytics">
+  <div class="a-head">
+    <div>
+      <h1>Analytics</h1>
+      <p>Who visits your portfolio and what they open. Your own visits while signed in are not counted, and no cookies or IP addresses are stored.</p>
+    </div>
+    <nav class="seg" aria-label="Time range">
+      {[7, 30, 90].map((d) => <a href={href({ days: String(d) }).replace('#chart', '')} aria-current={d === days ? 'page' : undefined}>{d} days</a>)}
+    </nav>
+  </div>
+
+  {empty && (
+    <div class="alert info" role="status">
+      <Icon name="chart" />
+      <div><strong>No visits recorded yet.</strong><p class="help">Numbers appear here as soon as people visit your live site. Open it in a private window to see your first visit counted.</p></div>
+    </div>
+  )}
+
+  <div class="grid-tiles an-tiles">
+    {tiles.map((t) => (
+      <a class="tile" href={href({ metric: t.key, target: '' })} aria-current={metric === t.key && !target ? 'true' : undefined}>
+        <span>{t.label}</span>
+        <b>{t.now.toLocaleString('en-IN')}</b>
+        <span>{t.delta == null ? t.help : `${t.delta >= 0 ? '↑' : '↓'} ${Math.abs(t.delta)}% vs previous ${days} days`}</span>
+      </a>
+    ))}
+  </div>
+
+  <section class="panel an-chart" id="chart" aria-labelledby="chart-h">
+    <div class="an-chart-head">
+      <div>
+        <h2 id="chart-h">{chartTitle}</h2>
+        <p class="muted">{fmtRange} · {unit(sum, m.unit)} in total{peak > 0 && ` · busiest day ${unit(peak, m.unit)}`}</p>
+      </div>
+      {target && <a class="a-btn sm" href={href({ target: '' })}>Show all {metric === 'out' ? 'links' : 'pages'}</a>}
+    </div>
+    <div class="bars-wrap">
+      <div class="y-axis" aria-hidden="true">{ticks.map((t) => <span>{t.toLocaleString('en-IN')}</span>)}</div>
+      <div class="plot">
+        <div class="grid-lines" aria-hidden="true"><i></i><i></i><i></i></div>
+        <ol class="bars" style={`grid-template-columns: repeat(${data.length}, 1fr)`} aria-label={`${chartTitle}, ${fmtRange}`}>
+          {data.map((d, i) => (
+            <li tabindex="0" class:list={[i < data.length / 3 && 'tip-l', i >= (data.length * 2) / 3 && 'tip-r']}
+              data-tip={`${fmtD(d.day, { weekday: 'short', day: 'numeric', month: 'short' })} · ${unit(d.n, m.unit)}`}
+              aria-label={`${fmtD(d.day, { day: 'numeric', month: 'long' })}: ${unit(d.n, m.unit)}`}>
+              {d.n > 0 && <i style={`height:${(d.n / yMax) * 100}%`}></i>}
+            </li>
+          ))}
+        </ol>
+        <div class="x-axis" aria-hidden="true" style={`grid-template-columns: repeat(${data.length}, 1fr)`}>
+          {data.map((d, i) => ((data.length - 1 - i) % every === 0 ? <span style={`grid-column:${i + 1}`}>{fmtD(d.day, days === 7 ? { weekday: 'short', day: 'numeric' } : { day: 'numeric', month: 'short' })}</span> : null))}
+        </div>
+      </div>
+    </div>
+    <details class="an-table">
+      <summary>Show as a table</summary>
+      <table class="table">
+        <thead><tr><th>Day</th><th>{m.label}</th></tr></thead>
+        <tbody>{[...data].reverse().map((d) => <tr><td>{fmtD(d.day, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</td><td>{d.n}</td></tr>)}</tbody>
+      </table>
+    </details>
+  </section>
+
+  <div class="cols an-cols">
+    {tables.map((t) => {
+      const max = Math.max(1, ...t.rows.map((x) => x.count));
+      return (
+        <section class="panel" aria-labelledby={`${t.id}-h`}>
+          <h2 id={`${t.id}-h`}>{t.title}</h2>
+          <p class="help" style="margin-bottom:var(--s-3)">{t.note}</p>
+          {t.rows.length === 0 ? <p class="muted">{t.emptyText ?? `Nothing in the last ${days} days.`}</p> : (
+            <table class="table rank">
+              <thead><tr><th>{t.id === 'refs' ? 'Source' : t.id === 'links' ? 'Link' : 'Page'}</th><th class="num">{t.col}</th><th class="num">People</th></tr></thead>
+              <tbody>
+                {t.rows.map((x) => (
+                  <tr>
+                    <td class="title">
+                      {x.path && t.metric ? <a href={href({ metric: t.metric, target: x.path })} title="Chart this per day">{x.name}</a> : <span>{x.name}</span>}
+                      {(x.sub || (x.path && t.id !== 'links' && t.id !== 'refs' && x.path !== x.name)) && <small>{x.sub || x.path}</small>}
+                      <span class="rank-bar" aria-hidden="true"><i style={`width:${(x.count / max) * 100}%`}></i></span>
+                    </td>
+                    <td class="num" data-label={t.col}>{x.count.toLocaleString('en-IN')}</td>
+                    <td class="num" data-label="People">{x.visitors.toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      );
+    })}
+  </div>
+  <p class="help" style="margin-top:var(--s-6)">Days run midnight to midnight, {TZ.replace('_', ' ')} time. “People” counts each visitor once per day, so someone who comes back on two days counts twice.</p>
+</Admin>
