@@ -7,7 +7,7 @@ import { cacheGet, cacheSet } from './cache.js';
 export const ALGOMENTOR_URL = (process.env.ALGOMENTOR_URL || 'https://algomentor.abdul-aziz.dev').replace(/\/+$/, '');
 const TTL_MS = 15 * 60 * 1000; // the API itself refreshes every 3 h; 15 min is plenty
 const RETRY_MS = 60 * 1000; // after a failure, don't hammer the API
-const TIMEOUT_MS = 2500;
+const TIMEOUT_MS = 8000;
 
 const PLATFORM_LABELS = { leetcode: 'LeetCode', codeforces: 'Codeforces', atcoder: 'AtCoder', cses: 'CSES' };
 // Problem-set sizes for platforms with a fixed list, so a card can say "58 / 400".

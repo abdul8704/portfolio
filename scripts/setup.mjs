@@ -35,7 +35,9 @@ let env = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
 for (const [k, v] of Object.entries(entries)) {
   const re = new RegExp(`^${k}=.*$`, 'm');
   if (k === 'SESSION_SECRET' && re.test(env)) continue; // keep existing sessions valid
-  env = re.test(env) ? env.replace(re, `${k}=${v}`) : env + (env && !env.endsWith('\n') ? '\n' : '') + `${k}=${v}\n`;
+  // Values with $ are single-quoted so Docker Compose does not treat them as variables
+  const line = `${k}=${String(v).includes('$') ? `'${v}'` : v}`;
+  env = re.test(env) ? env.replace(re, () => line) : env + (env && !env.endsWith('\n') ? '\n' : '') + `${line}\n`;
 }
 writeFileSync('.env', env, { mode: 0o600 });
 console.log('\nSaved to .env (keep this file private). Start the site with: npm run build && npm start');

@@ -1,4 +1,5 @@
 # Local Postgres + Redis for development: `npm run db:up` (needs Docker Desktop).
+# Uses host ports 5433 and 6380 so it does not clash with a Postgres/Redis already on 5432/6379.
 # Matches the DATABASE_URL and REDIS_URL in .env.example. Data survives restarts in named volumes.
 services:
   postgres:
@@ -7,12 +8,12 @@ services:
       POSTGRES_USER: portfolio
       POSTGRES_PASSWORD: portfolio
       POSTGRES_DB: portfolio
-    ports: ["127.0.0.1:5432:5432"]
+    ports: ["127.0.0.1:5433:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     restart: unless-stopped
   redis:
     image: redis:8-alpine
-    ports: ["127.0.0.1:6379:6379"]
+    ports: ["127.0.0.1:6380:6379"]
     restart: unless-stopped
 volumes:
   pgdata:
