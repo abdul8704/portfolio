@@ -19,12 +19,12 @@ services:
     restart: "no"
     environment:
       PGHOST: shared-postgres
-      PGUSER: ${POSTGRES_USER}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       PGDATABASE: postgres
       DB_NAME: ${PORTFOLIO_DB:-portfolio}
       DB_USER: ${PORTFOLIO_DB_USER:-portfolio}
-      DB_PASS: ${PORTFOLIO_DB_PASSWORD}
+      DB_PASS: ${PORTFOLIO_DB_PASSWORD:?set PORTFOLIO_DB_PASSWORD in .env}
     command:
       - sh
       - -c
@@ -57,7 +57,7 @@ services:
       # Its own database inside the shared-postgres container
       DATABASE_URL: postgresql://${PORTFOLIO_DB_USER:-portfolio}:${PORTFOLIO_DB_PASSWORD}@shared-postgres:5432/${PORTFOLIO_DB:-portfolio}
       # Shared Redis, but its own logical db (1) plus a key prefix, so nothing clashes with your other app
-      REDIS_URL: redis://:${REDIS_PASSWORD}@shared-redis:6379/${PORTFOLIO_REDIS_DB:-1}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@shared-redis:6379/${PORTFOLIO_REDIS_DB:-1}
       REDIS_PREFIX: "portfolio:"
       # Behind nginx/Caddy on the same box: read the visitor IP from X-Forwarded-For
       TRUST_PROXY: ${TRUST_PROXY:-1}
