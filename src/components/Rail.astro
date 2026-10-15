@@ -22,7 +22,7 @@ const viewerAttrs = { target: '_blank', rel: 'noopener', 'data-resume-viewer': '
   <div class="rail-main">
     <div class="identity" data-identity>
       {profile.photo ? (
-        <img class="avatar" data-morph="avatar" src={small(profile.photo)} srcset={`${small(profile.photo)} 640w, ${profile.photo} 1600w`} sizes="(min-width: 901px) 280px, 200px"
+        <img class="avatar" data-morph="avatar" src={small(profile.photo)} srcset={`${small(profile.photo)} 640w, ${profile.photo} 1600w`} sizes="(min-width: 901px) 560px, 336px"
           alt={profile.photoAlt || profile.name} width="112" height="112" loading="eager" decoding="async" />
       ) : profile.avatarFallback !== false && (
         <div class="avatar-wrap" data-morph="avatar"><DevAvatar /></div>
