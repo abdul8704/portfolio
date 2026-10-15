@@ -13,6 +13,7 @@ import { ENTITIES } from '../lib/entities.js';
 import { counts } from '../lib/store.js';
 import { takeFlash } from '../lib/http.js';
 import { getProfile } from '../lib/store.js';
+import { MAX_UPLOAD_BYTES, MAX_PDF_BYTES } from '../lib/config.js';
 
 const { title, active = '', bare = false, media = null } = Astro.props;
 const owner = Astro.locals.owner;
@@ -29,6 +30,8 @@ const content = ['project', 'achievement', 'certification', 'timeline', 'skill',
     <meta name="robots" content="noindex, nofollow" />
     <meta name="color-scheme" content="dark" />
     {owner && <meta name="csrf" content={owner.csrf} />}
+    <meta name="max-upload" content={MAX_UPLOAD_BYTES} />
+    <meta name="max-pdf" content={MAX_PDF_BYTES} />
     <title>{title} · Admin</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>

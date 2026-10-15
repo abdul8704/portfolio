@@ -1,7 +1,7 @@
 import { ENTITIES } from '../../../lib/entities.js';
 import { trashItem, restoreItem, purgeItem, moveItem, duplicateItem, deleteMedia, mediaUsage } from '../../../lib/store.js';
 import { destroySession, destroyOthers, destroyAll } from '../../../lib/auth.js';
-import { saveUpload } from '../../../lib/media.js';
+import { saveUpload, saveResume } from '../../../lib/media.js';
 import { renderMarkdown } from '../../../lib/markdown.js';
 import { flash, json, safeNext, isHttps } from '../../../lib/http.js';
 
@@ -23,6 +23,13 @@ export async function POST(ctx) {
     case 'upload': {
       try {
         return json({ ok: true, ...(await saveUpload(form.get('file'))) });
+      } catch (e) {
+        return json({ ok: false, error: e.message }, 400);
+      }
+    }
+    case 'upload-resume': {
+      try {
+        return json({ ok: true, ...(await saveResume(form.get('file'))) });
       } catch (e) {
         return json({ ok: false, error: e.message }, 400);
       }

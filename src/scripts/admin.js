@@ -105,26 +105,83 @@ addEventListener('keydown', (e) => {
 });
 
 /* ----- uploads ----- */
-async function upload(file) {
+const limits = {
+  image: Number($('meta[name=max-upload]')?.content) || 0,
+  pdf: Number($('meta[name=max-pdf]')?.content) || 0,
+};
+const mbText = (n) => (n / 1048576).toFixed(n >= 10485760 ? 0 : 1).replace(/\.0$/, '');
+
+// One place for every upload: checks the size before sending, and turns any failure
+// (our own message, a proxy error page, a dropped connection) into a plain sentence.
+async function send(url, file, max, advice) {
+  if (!file) throw new Error('Choose a file first.');
+  if (max && file.size > max) {
+    throw new Error(`${file.name || 'That file'} is ${mbText(file.size)} MB. The limit is ${mbText(max)} MB. ${advice}`);
+  }
   const fd = new FormData();
   fd.set('file', file);
   fd.set('_csrf', csrf);
-  const res = await fetch('/admin/api/upload', { method: 'POST', body: fd, headers: { 'x-csrf-token': csrf } });
-  const out = await res.json().catch(() => ({ ok: false, error: 'Upload failed. Try again.' }));
-  if (!out.ok) throw new Error(out.error);
-  return out;
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', body: fd, headers: { 'x-csrf-token': csrf } });
+  } catch (err) {
+    console.error('[upload] network error', err);
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  const text = await res.text().catch(() => '');
+  let out = null;
+  try { out = JSON.parse(text); } catch { /* not JSON: a proxy or server error page */ }
+  if (out?.ok) return out;
+  if (out?.error) throw new Error(out.error);
+  console.error('[upload] unexpected response', res.status, text.slice(0, 300));
+  const byStatus = {
+    401: 'Your session expired. Sign in again and retry. Anything you typed on this page is kept.',
+    403: 'This page expired. Reload it and try again.',
+    413: 'The server refused this file as too large. Its upload limit is lower than the site allows, so try a smaller file or ask for the web server limit to be raised.',
+    502: 'The server is restarting or busy. Wait a few seconds and try again.',
+    503: 'The server is restarting or busy. Wait a few seconds and try again.',
+    504: 'The server took too long to answer. Try again, or try a smaller file.',
+  };
+  throw new Error(byStatus[res.status] || `Upload failed (error ${res.status}). Try again, or check the server log.`);
 }
+const upload = (file) => send('/admin/api/upload', file, limits.image, 'Choose a smaller photo or resize it first.');
+
 function say(msg, ok = false) {
   const live = $('#live'); if (live) live.textContent = msg;
-  let t = $('.toast.js-toast');
-  t?.remove();
-  t = document.createElement('div');
+  $$('.toast.js-toast').forEach((x) => x.remove());
+  const t = document.createElement('div');
   t.className = 'toast js-toast ' + (ok ? 'ok' : 'err'); t.setAttribute('role', ok ? 'status' : 'alert');
   t.innerHTML = '<span></span><button type="button" aria-label="Dismiss">✕</button>';
   t.firstChild.textContent = msg; t.lastChild.onclick = () => t.remove();
-  document.body.append(t);
+  // an open dialog sits in the top layer and would hide a toast on the page behind it
+  ($('dialog[open]') || document.body).append(t);
   if (ok) setTimeout(() => t.remove(), 4000);
 }
+
+/* résumé PDF field */
+$$('[data-pdf-field]').forEach((box) => {
+  const input = $('input[type=hidden]', box), file = $('input[type=file]', box), status = $('[data-pdf-status]', box);
+  const up = $('[data-upload]', box), rm = $('[data-remove]', box), view = $('[data-view]', box);
+  const saved = input.value;
+  const set = (key, msg) => {
+    input.value = key; status.textContent = msg;
+    up.textContent = key ? 'Replace PDF' : 'Upload PDF';
+    rm.hidden = !key; view.hidden = !key || key !== saved;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  up.onclick = () => file.click();
+  file.onchange = async () => {
+    const f = file.files[0]; if (!f) return;
+    const label = up.textContent; up.disabled = true; up.textContent = 'Uploading…';
+    try {
+      const r = await send('/admin/api/upload-resume', f, limits.pdf, 'Compress the PDF and try again.');
+      set(r.key, `${f.name} uploaded. Save changes to publish it.`);
+      say('PDF uploaded. Save changes to publish it.', true);
+    } catch (err) { up.textContent = label; say(err.message); }
+    finally { up.disabled = false; file.value = ''; }
+  };
+  rm.onclick = () => set('', 'No PDF. Save changes to remove it from the site.');
+});
 
 /* image fields */
 $$('[data-image-field]').forEach((box) => {

@@ -9,6 +9,7 @@ import { getSolvedStats } from '../lib/algomentor.js';
 import { listItems } from '../lib/store.js';
 import { siteContext, fmtDate, personLd, websiteLd, pageLd, hasPlaceholder } from '../lib/seo.js';
 import { readingMinutes } from '../lib/markdown.js';
+import { resumeLink } from '../lib/resume.js';
 
 const { profile, origin, drafts } = await siteContext(Astro);
 const timeline = await listItems('timeline', { drafts });
@@ -18,6 +19,7 @@ const certs = await listItems('certification', { drafts });
 const skills = await listItems('skill', { drafts });
 const posts = (await listItems('post', { drafts })).slice(0, 3);
 const solved = await getSolvedStats(profile.algomentorHandle);
+const resume = resumeLink(profile);
 
 const nav = [
   ['About', '#about', true],
@@ -58,7 +60,7 @@ const graph = [
           {profile.about.map((p) => <p>{p}</p>)}
           {profile.status && <span class="status">{profile.status}</span>}
           <div class="about-actions">
-            {profile.resume && <a class="btn-link" href={profile.resume} data-magnetic>Résumé <span aria-hidden="true">↗</span></a>}
+            {resume && <a class="btn-link" href={resume.href} {...(resume.viewer ? { target: '_blank', rel: 'noopener', 'data-resume-viewer': '' } : {})} data-magnetic>Résumé <span aria-hidden="true">↗</span></a>}
             {profile.email && <a class="btn-link" href={`mailto:${profile.email}`} data-magnetic>Get in touch <span aria-hidden="true">↗</span></a>}
           </div>
         </div>

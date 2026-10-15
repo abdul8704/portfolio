@@ -5,6 +5,7 @@ import Field from '../../components/admin/Field.astro';
 import { PROFILE_FIELDS, coerce } from '../../lib/entities.js';
 import { getProfile, saveProfile, listMedia } from '../../lib/store.js';
 import { flash } from '../../lib/http.js';
+import { removeBlob } from '../../lib/blobs.js';
 
 export const prerender = false;
 let values = await getProfile();
@@ -15,6 +16,8 @@ if (Astro.request.method === 'POST') {
   const { data, errors: errs } = coerce(PROFILE_FIELDS, form);
   if (!Object.keys(errs).length) {
     await saveProfile(data);
+    // a replaced or removed résumé PDF should not linger in storage
+    if (values.resumeFile && values.resumeFile !== data.resumeFile) removeBlob(values.resumeFile).catch((e) => console.error('[resume]', e?.message || e));
     flash(Astro, 'ok', 'Site settings saved.');
     return Astro.redirect('/admin/profile', 303);
   }

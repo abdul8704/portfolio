@@ -1,4 +1,5 @@
 ---
+import { MAX_UPLOAD_BYTES } from '../../lib/config.js';
 import Admin from '../../layouts/Admin.astro';
 import Icon from '../../components/admin/Icon.astro';
 import { listMedia, mediaUsage } from '../../lib/store.js';
@@ -14,7 +15,7 @@ const kb = (b) => (b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.round(b / 1e
   <label class="drop" data-drop>
     <Icon name="image" />
     <strong>Drop images here or <span style="color:var(--action);text-decoration:underline">browse</span></strong>
-    <span class="help">JPG, PNG, WebP, GIF or AVIF · up to 8 MB each</span>
+    <span class="help">JPG, PNG, WebP, GIF or AVIF · up to {Math.round(MAX_UPLOAD_BYTES / 1048576)} MB each</span>
     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple class="sr-only" />
   </label>
   {media.length === 0 ? (

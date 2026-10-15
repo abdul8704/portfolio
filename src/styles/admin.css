@@ -244,3 +244,7 @@ code.inline { font: 400 0.9em var(--font-mono); background: var(--surface-raised
 }
 .an-cols > * { min-width: 0; }
 .rank td.title { overflow-wrap: anywhere; }
+
+/* résumé PDF upload field */
+.pdf-field { display: grid; gap: var(--s-2); }
+.pdf-status { margin: 0; color: var(--content-body); font-size: var(--text-sm); }

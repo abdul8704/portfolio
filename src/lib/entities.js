@@ -137,7 +137,9 @@ export const PROFILE_FIELDS = [
   { key: 'location', label: 'Location', type: 'text', group: 'Intro', help: 'Helps search engines and AI answers place you. City and country is plenty.' },
   { key: 'email', label: 'Public email', type: 'email', group: 'Links' },
   { key: 'socials', label: 'Social links', type: 'pairs', group: 'Links', help: 'One per line: Label | https://…' },
-  { key: 'resume', label: 'Résumé URL', type: 'url', group: 'Links', help: 'Leave empty to hide the link.' },
+  { key: 'resumeFile', label: 'Résumé (PDF)', type: 'pdf', group: 'Links',
+    help: 'Upload your résumé. Visitors open it in a popup and can download it. Leave empty to hide the link.' },
+  { key: 'resume', label: 'Résumé link (optional)', type: 'url', group: 'Links', help: 'Only used when no PDF is uploaded, for a résumé hosted elsewhere.' },
   { key: 'algomentorHandle', label: 'AlgoMentor public handle', type: 'text', max: 30, group: 'Problem solving',
     help: 'Shows your solved counts from AlgoMentor (turn on Settings → Public profile & API there, with the Stats widget). Leave empty to hide the section.' },
   { key: 'algomentorLink', label: '“View more” link', type: 'url', group: 'Problem solving',
@@ -236,6 +238,10 @@ export function coerce(fields, form) {
       case 'select':
         val = str.trim();
         if (val && !f.options.includes(val)) errors[f.key] = 'Pick one of the options.';
+        break;
+      case 'pdf':
+        val = str.trim();
+        if (val && !/^resume-[a-f0-9]{16}\.pdf$/.test(val)) errors[f.key] = 'Upload the PDF again.';
         break;
       case 'image':
         val = str.trim();

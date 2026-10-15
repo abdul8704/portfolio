@@ -23,7 +23,10 @@ export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
 export const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '';
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 export const SESSION_DAYS = 7;
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+// Photo limit (MAX_UPLOAD_MB, default 25). Photos are resized and re-encoded, so big originals are fine.
+// If you put nginx in front, its client_max_body_size must be at least this big.
+export const MAX_UPLOAD_BYTES = Math.round((Number(process.env.MAX_UPLOAD_MB) > 0 ? Number(process.env.MAX_UPLOAD_MB) : 25) * 1024 * 1024);
+export const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
 // Image storage. Leave S3_BUCKET empty to keep images in DATA_DIR/uploads.
 export const S3 = {

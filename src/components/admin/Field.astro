@@ -1,5 +1,7 @@
 ---
 import Icon from './Icon.astro';
+import { MAX_UPLOAD_BYTES, MAX_PDF_BYTES } from '../../lib/config.js';
+const mbOf = (n) => Math.round(n / 1048576);
 const { field: f, value, error, library = false } = Astro.props;
 const id = `f-${f.key}`;
 const show = (v) => {
@@ -65,8 +67,20 @@ const placeholder = { month: 'YYYY-MM', url: 'https://', pairs: 'GitHub | https:
               {library && <button type="button" class="a-btn" data-library>Choose from library</button>}
               <button type="button" class="a-btn ghost" data-remove hidden={!val}>Remove</button>
             </div>
-            <p class="help" style="margin-top:var(--s-2)">JPG, PNG, WebP, GIF or AVIF up to 8 MB. Resized and optimised automatically.</p>
+            <p class="help" style="margin-top:var(--s-2)">JPG, PNG, WebP, GIF or AVIF up to {mbOf(MAX_UPLOAD_BYTES)} MB. Resized and optimised automatically.</p>
           </div>
+        </div>
+      ) : f.type === 'pdf' ? (
+        <div class="pdf-field" data-pdf-field role="group" aria-labelledby={`${id}-label`}>
+          <input type="hidden" id={id} name={f.key} value={val} />
+          <input type="file" accept="application/pdf,.pdf" hidden tabindex="-1" aria-label="Upload a PDF" />
+          <p class="pdf-status" data-pdf-status aria-live="polite">{val ? 'A résumé PDF is uploaded.' : 'No PDF uploaded yet.'}</p>
+          <div class="img-actions">
+            <button type="button" class="a-btn" data-upload data-no-loading><Icon name="plus" />{val ? 'Replace PDF' : 'Upload PDF'}</button>
+            <a class="a-btn" href="/files/resume.pdf" target="_blank" rel="noopener" data-view hidden={!val}>View saved PDF</a>
+            <button type="button" class="a-btn ghost" data-remove hidden={!val}>Remove</button>
+          </div>
+          <p class="help" style="margin-top:var(--s-2)">PDF up to {mbOf(MAX_PDF_BYTES)} MB. Save changes to publish it.</p>
         </div>
       ) : f.type === 'markdown' ? (
         <div class="md-box" data-md>

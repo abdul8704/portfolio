@@ -42,11 +42,13 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   const res = await next();
+  // The résumé PDF is shown in a popup iframe on our own pages, so it may be framed by us only.
+  const isResumePdf = pathname === '/files/resume.pdf';
   try {
-    res.headers.set('Content-Security-Policy', CSP);
+    res.headers.set('Content-Security-Policy', isResumePdf ? "frame-ancestors 'self'" : CSP);
     res.headers.set('X-Content-Type-Options', 'nosniff');
     res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.headers.set('X-Frame-Options', 'DENY');
+    res.headers.set('X-Frame-Options', isResumePdf ? 'SAMEORIGIN' : 'DENY');
     res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     if (isAdmin) {
       res.headers.set('Cache-Control', 'private, no-store');

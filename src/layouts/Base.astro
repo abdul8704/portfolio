@@ -8,9 +8,11 @@ import '../styles/tokens.css';
 import '../styles/site.css';
 import Seo from '../components/Seo.astro';
 import { ldScript } from '../lib/seo.js';
+import { resumeLink } from '../lib/resume.js';
 
 const { seo, profile, graph = [], motion = true, owner = false, track = true } = Astro.props;
 const noindex = seo.noindex || !profile.indexable;
+const resume = resumeLink(profile);
 ---
 <!doctype html>
 <html lang="en" style={`--accent:${profile.accent}`}>
@@ -24,14 +26,28 @@ const noindex = seo.noindex || !profile.indexable;
     <!-- Content stays visible without JS; animation only arms when JS is on. -->
     <script is:inline>document.documentElement.classList.add('js');</script>
   </head>
-  <body data-track={track && !owner ? '' : undefined} data-resume={profile.resume || undefined}>
+  <body data-track={track && !owner ? '' : undefined} data-resume={resume?.href}>
     <a class="skip-link" href="#main">Skip to content</a>
     {motion && <div class="progress" aria-hidden="true"><i></i></div>}
     <slot />
+    {resume?.viewer && (
+      <dialog class="resume-modal" id="resume-modal" aria-labelledby="resume-title" data-src={resume.href}>
+        <div class="rm-bar">
+          <h2 id="resume-title">Résumé</h2>
+          <div class="rm-actions">
+            <a class="rm-btn primary" href={resume.download} download>Download</a>
+            <a class="rm-btn" href={resume.href} target="_blank" rel="noopener">Open in new tab</a>
+            <button type="button" class="rm-btn" data-close>Close</button>
+          </div>
+        </div>
+        <iframe class="rm-frame" title="Résumé (PDF)"></iframe>
+      </dialog>
+    )}
     {owner && <a href="/admin" class="admin-pill" style="position:fixed;right:16px;bottom:16px;z-index:70;background:var(--surface-raised-2);border:1px solid var(--action-line);color:var(--action);padding:10px 14px;border-radius:999px;font:500 12px/1 var(--font-mono);">Edit in admin</a>}
     <script>
       import '../scripts/motion.js';
       import '../scripts/track.js';
+      import '../scripts/resume.js';
     </script>
   </body>
 </html>

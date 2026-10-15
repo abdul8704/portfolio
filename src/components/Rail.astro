@@ -1,19 +1,22 @@
 ---
 import { small } from '../lib/seo.js';
 import DevAvatar from './DevAvatar.astro';
+import { resumeLink } from '../lib/resume.js';
 const { profile, skills, nav } = Astro.props;
 // The three hero links: GitHub, LinkedIn, Résumé. Other links stay in the rail footer.
 const socials = profile.socials || [];
 const pick = (re) => socials.find((s) => re.test(s.label) || re.test(s.href));
+const resume = resumeLink(profile);
 const github = pick(/github/i);
 const linkedin = pick(/linkedin/i);
 const heroLinks = [
   github && { label: 'GitHub', href: github.href },
   linkedin && { label: 'LinkedIn', href: linkedin.href },
-  profile.resume && { label: 'Résumé', href: profile.resume },
+  resume && { label: 'Résumé', href: resume.href, viewer: resume.viewer },
 ].filter(Boolean);
 const otherSocials = socials.filter((s) => s !== github && s !== linkedin);
 const ext = (href) => (href.startsWith('http') ? { target: '_blank', rel: 'me noopener' } : {});
+const viewerAttrs = { target: '_blank', rel: 'noopener', 'data-resume-viewer': '' };
 ---
 <header class="rail" data-rail>
   <div class="rail-main">
@@ -29,7 +32,7 @@ const ext = (href) => (href.startsWith('http') ? { target: '_blank', rel: 'me no
       <p class="summary" data-morph="summary">{profile.summary}</p>
       {heroLinks.length > 0 && (
         <ul class="id-links" data-morph="links" aria-label="Profiles">
-          {heroLinks.map((l) => <li><a href={l.href} {...ext(l.href)} data-magnetic>{l.label}<span aria-hidden="true">↗</span></a></li>)}
+          {heroLinks.map((l) => <li><a href={l.href} {...(l.viewer ? viewerAttrs : ext(l.href))} data-magnetic>{l.label}<span aria-hidden="true">↗</span></a></li>)}
         </ul>
       )}
     </div>

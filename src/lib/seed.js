@@ -17,6 +17,7 @@ export const PROFILE_DEFAULTS = {
     { label: 'LinkedIn', href: 'https://linkedin.com/in/your-handle' },
   ],
   resume: '',
+  resumeFile: '',
   siteUrl: '',
   seoTitle: '',
   seoDescription: '',

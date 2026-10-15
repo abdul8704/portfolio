@@ -448,3 +448,17 @@ body::before {
   .ps-big b { font-size: 1.75rem; }
 }
 @media (prefers-reduced-motion: reduce) { .js .ps-bar i, .js .ps-progress i { transform: none; transition: none; } }
+
+/* résumé popup */
+.resume-modal { width: min(960px, calc(100vw - 2rem)); height: min(90dvh, 1100px); max-width: none; max-height: none; padding: 0; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-raised); color: var(--content-body); box-shadow: var(--shadow-4); overflow: hidden; }
+.resume-modal[open] { display: flex; flex-direction: column; }
+.resume-modal::backdrop { background: var(--scrim); backdrop-filter: blur(3px); }
+html:has(.resume-modal[open]) { overflow: hidden; }
+.rm-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--border-subtle); }
+.rm-bar h2 { margin: 0; font: 600 var(--text-body)/1.2 var(--font-sans); color: var(--content-primary); }
+.rm-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.rm-btn { display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 var(--s-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--content-primary); font: 500 var(--text-sm)/1 var(--font-mono); cursor: pointer; text-decoration: none; }
+.rm-btn:hover { border-color: var(--action-line); background: var(--action-soft); }
+.rm-btn.primary { background: var(--action); border-color: transparent; color: var(--on-action); }
+.rm-btn.primary:hover { filter: brightness(1.08); background: var(--action); }
+.rm-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
