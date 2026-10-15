@@ -1,0 +1,46 @@
+---
+import Base from '../../layouts/Base.astro';
+import Logo from '../../components/Logo.astro';
+import Card from '../../components/Card.astro';
+import { listItems } from '../../lib/store.js';
+import { siteContext, websiteLd, personLd, crumbsLd, pageLd } from '../../lib/seo.js';
+
+// "All projects", "All achievements", "All certifications": everything the home page trims.
+const LISTS = {
+  projects: { type: 'project', name: 'Projects', lede: 'Everything I have built, newest first.' },
+  achievements: { type: 'achievement', name: 'Achievements', lede: 'Competitions, awards and other milestones.' },
+  certifications: { type: 'certification', name: 'Certifications', lede: 'Courses and credentials.' },
+};
+const cfg = LISTS[Astro.params.section];
+const { profile, origin, drafts } = await siteContext(Astro);
+const items = cfg ? await listItems(cfg.type, { drafts }) : [];
+if (!cfg || items.length === 0) return Astro.rewrite('/404');
+const base = `/${Astro.params.section}`;
+const title = `${cfg.name} | ${profile.name}`;
+const description = `${cfg.lede} By ${profile.name}, ${profile.role}.`;
+const graph = [
+  websiteLd(profile, origin),
+  await personLd(profile, origin),
+  pageLd(origin + base, title, description, origin),
+  crumbsLd(origin, [{ name: profile.name, path: '/' }, { name: cfg.name, path: base }]),
+];
+---
+<Base profile={profile} owner={!!Astro.locals.owner} graph={graph} seo={{ title, description, path: base, origin, image: profile.ogImage, imageAlt: profile.ogImageAlt }}>
+  <main class="page" id="main">
+    <nav class="topbar" aria-label="Breadcrumb"><a href="/" data-magnetic><Logo size={22} />{profile.name}</a><span aria-current="page">{cfg.name}</span></nav>
+    <h1>{cfg.name}</h1>
+    <p class="lede">{cfg.lede}</p>
+    <ul class="card-list dim-list" style="margin-top:var(--s-10)">
+      {items.map((it) => cfg.type === 'project' ? (
+        <Card href={`${base}/${it.slug}`} title={it.name} desc={it.blurb} result={it.outcome} tags={it.stack}
+          image={it.image} alt={it.imageAlt} transitionName={`t-project-${it.slug}`} meta={it.published ? '' : 'Draft'} />
+      ) : cfg.type === 'achievement' ? (
+        <Card href={`${base}/${it.slug}`} title={it.title} kind={it.kind} meta={[it.event, it.year].filter(Boolean).join(' · ')}
+          desc={it.note} image={it.image} alt={it.imageAlt} transitionName={`t-achievement-${it.slug}`} />
+      ) : (
+        <Card href={`${base}/${it.slug}`} title={it.name} meta={[it.issuer, it.year].filter(Boolean).join(' · ')}
+          desc={it.note} image={it.image} alt={it.imageAlt} transitionName={`t-certification-${it.slug}`} />
+      ))}
+    </ul>
+  </main>
+</Base>

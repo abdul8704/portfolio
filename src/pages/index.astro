@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Logo from '../components/Logo.astro';
 import Rail from '../components/Rail.astro';
 import Card from '../components/Card.astro';
 import FlowDiagram from '../components/FlowDiagram.astro';
@@ -13,11 +14,16 @@ import { resumeLink } from '../lib/resume.js';
 
 const { profile, origin, drafts } = await siteContext(Astro);
 const timeline = await listItems('timeline', { drafts });
-const projects = await listItems('project', { drafts });
-const achievements = await listItems('achievement', { drafts });
-const certs = await listItems('certification', { drafts });
+const allProjects = await listItems('project', { drafts });
+const allAchievements = await listItems('achievement', { drafts });
+const allCerts = await listItems('certification', { drafts });
+const lim = (v) => Math.min(50, Math.max(1, parseInt(v, 10) || 3));
+const projects = allProjects.slice(0, lim(profile.homeProjects));
+const achievements = allAchievements.slice(0, lim(profile.homeAchievements));
+const certs = allCerts.slice(0, lim(profile.homeCerts));
 const skills = await listItems('skill', { drafts });
-const posts = (await listItems('post', { drafts })).slice(0, 3);
+const allPosts = await listItems('post', { drafts });
+const posts = allPosts.slice(0, lim(profile.homePosts));
 const solved = await getSolvedStats(profile.algomentorHandle);
 const resume = resumeLink(profile);
 
@@ -28,7 +34,7 @@ const nav = [
   ...(solved ? [['Problem solving', '#problem-solving', true]] : []),
   ...(achievements.length ? [['Achievements', '#achievements', true]] : []),
   ...(certs.length ? [['Certifications', '#certifications', true]] : []),
-  ['Blog', '/blog', false],
+  ...(allPosts.length ? [['Blog', '/blog', false]] : []),
 ];
 let n = 0;
 const num = () => String(++n).padStart(2, '0');
@@ -83,6 +89,7 @@ const graph = [
                 image={p.image} alt={p.imageAlt} transitionName={`t-project-${p.slug}`} meta={p.published ? '' : 'Draft'} />
             ))}
           </ul>
+          {allProjects.length > projects.length && <p class="more" data-reveal><a class="btn-link" href="/projects" data-magnetic>All projects ({allProjects.length}) <span aria-hidden="true">→</span></a></p>}
         </section>
       )}
 
@@ -97,6 +104,7 @@ const graph = [
                 desc={a.note} image={a.image} alt={a.imageAlt} transitionName={`t-achievement-${a.slug}`} />
             ))}
           </ul>
+          {allAchievements.length > achievements.length && <p class="more" data-reveal><a class="btn-link" href="/achievements" data-magnetic>All achievements ({allAchievements.length}) <span aria-hidden="true">→</span></a></p>}
         </section>
       )}
 
@@ -109,13 +117,14 @@ const graph = [
                 desc={c.note} image={c.image} alt={c.imageAlt} transitionName={`t-certification-${c.slug}`} />
             ))}
           </ul>
+          {allCerts.length > certs.length && <p class="more" data-reveal><a class="btn-link" href="/certifications" data-magnetic>All certifications ({allCerts.length}) <span aria-hidden="true">→</span></a></p>}
         </section>
       )}
 
+      {allPosts.length > 0 && (
       <section id="writing" aria-labelledby="h-writing">
         <h2 class="section-title" id="h-writing"><b>{num()}</b>Writing</h2>
-        {posts.length === 0 ? <p class="empty">No posts yet.</p> : (
-          <ul class="dim-list" data-stagger>
+        <ul class="dim-list" data-stagger>
             {posts.map((p) => (
               <li class="post dim-item" data-reveal data-cursor-label="Read">
                 <span class="card-kicker">{fmtDate(p.date)} · {readingMinutes(p.body)} min read{!p.published && ' · Draft'}</span>
@@ -123,13 +132,13 @@ const graph = [
                 <p>{p.description}</p>
               </li>
             ))}
-          </ul>
-        )}
-        <p style="margin-top:var(--s-4)" data-reveal><a class="btn-link" href="/blog" data-magnetic>All posts <span aria-hidden="true">→</span></a></p>
+        </ul>
+        {allPosts.length > posts.length && <p class="more" data-reveal><a class="btn-link" href="/blog" data-magnetic>All posts ({allPosts.length}) <span aria-hidden="true">→</span></a></p>}
       </section>
+      )}
 
       <footer class="foot">
-        <p>© {new Date().getFullYear()} {profile.name}</p>
+        <p class="foot-id"><Logo size={18} />© {new Date().getFullYear()} {profile.name}</p>
         <p><a href="/rss.xml">RSS</a> · <a href="/llms.txt">llms.txt</a> · <a href="/sitemap.xml">Sitemap</a></p>
       </footer>
     </main>

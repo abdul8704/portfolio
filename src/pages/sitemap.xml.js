@@ -11,7 +11,9 @@ export async function GET({ url }) {
   const origin = originOf(url, profile);
   const entries = [{ loc: origin + '/', priority: '1.0' }, { loc: origin + '/blog', priority: '0.8' }];
   for (const type of ['project', 'achievement', 'certification', 'post']) {
-    for (const it of await listItems(type)) {
+    const all = await listItems(type);
+    if (all.length && ENTITIES[type].base !== '/blog') entries.push({ loc: origin + ENTITIES[type].base, priority: '0.7' });
+    for (const it of all) {
       entries.push({
         loc: `${origin}${ENTITIES[type].base}/${it.slug}`,
         lastmod: new Date(it.updatedAt).toISOString().slice(0, 10),

@@ -152,6 +152,14 @@ export const PROFILE_FIELDS = [
   { key: 'ogImageAlt', label: 'Share image description', type: 'text', group: 'Search & sharing' },
   { key: 'indexable', label: 'Allow search engines and AI crawlers', type: 'checkbox', group: 'Search & sharing',
     help: 'Untick to ask crawlers to stay away (robots.txt and noindex).' },
+  { key: 'homeProjects', label: 'Projects on the home page', type: 'number', def: 3, group: 'Home page',
+    help: 'How many projects the home page shows. The rest sit behind an “All projects” page.' },
+  { key: 'homeAchievements', label: 'Achievements on the home page', type: 'number', def: 3, group: 'Home page',
+    help: 'The rest sit behind an “All achievements” page.' },
+  { key: 'homeCerts', label: 'Certifications on the home page', type: 'number', def: 3, group: 'Home page',
+    help: 'The rest sit behind an “All certifications” page.' },
+  { key: 'homePosts', label: 'Blog posts on the home page', type: 'number', def: 3, group: 'Home page',
+    help: 'The rest sit behind the “All posts” page. Sections with nothing in them are hidden everywhere.' },
   { key: 'accent', label: 'Accent colour', type: 'select', options: ['#7dd3a8', '#7cc4ff', '#f2b46d', '#c4a7ff'], optionLabels: ['Mint', 'Sky', 'Amber', 'Lilac'], group: 'Look' },
 ];
 
@@ -239,6 +247,11 @@ export function coerce(fields, form) {
         val = str.trim();
         if (val && !f.options.includes(val)) errors[f.key] = 'Pick one of the options.';
         break;
+      case 'number': {
+        const n = parseInt(str, 10);
+        val = Number.isFinite(n) ? Math.min(50, Math.max(1, n)) : (f.def ?? 3);
+        break;
+      }
       case 'pdf':
         val = str.trim();
         if (val && !/^resume-[a-f0-9]{16}\.pdf$/.test(val)) errors[f.key] = 'Upload the PDF again.';

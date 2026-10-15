@@ -18,3 +18,19 @@ if (dlg) {
   });
   dlg.addEventListener('close', () => opener?.focus());
 }
+
+// mailto fallback: with no mail app set up the browser does nothing on click. If the page is still
+// in front shortly after the click, copy the address instead and say so on the link.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href^="mailto:"]');
+  if (!a || e.defaultPrevented || e.button !== 0) return;
+  const addr = decodeURIComponent(a.getAttribute('href').slice(7).split('?')[0]);
+  setTimeout(() => {
+    if (document.hidden || !document.hasFocus() || !navigator.clipboard) return;
+    navigator.clipboard.writeText(addr).then(() => {
+      const label = a.innerHTML;
+      a.textContent = 'Email copied to clipboard';
+      setTimeout(() => { a.innerHTML = label; }, 2200);
+    }).catch(() => {});
+  }, 700);
+});

@@ -1,4 +1,5 @@
 ---
+import Logo from '../components/Logo.astro';
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
@@ -48,7 +49,7 @@ const content = ['project', 'achievement', 'certification', 'timeline', 'skill',
           <button class="a-btn sm" type="button" data-menu aria-expanded="false" aria-controls="a-side" aria-label="Menu"><Icon name="menu" /></button>
         </div>
         <aside class="a-side" id="a-side">
-          <div class="a-brand"><i>{profile.name.slice(0, 1)}</i><span>{profile.name}<small>Content admin</small></span></div>
+          <div class="a-brand"><Logo size={30} /><span>{profile.name}<small>Content admin</small></span></div>
           <nav class="a-nav" aria-label="Admin">
             <a href="/admin" aria-current={active === 'dash' ? 'page' : undefined}><Icon name="dash" />Dashboard</a>
             <a href="/admin/analytics" aria-current={active === 'analytics' ? 'page' : undefined}><Icon name="chart" />Analytics</a>

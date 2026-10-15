@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import Logo from './Logo.astro';
 import Thumb from './Thumb.astro';
 import { ENTITIES } from '../lib/entities.js';
 import { listItems } from '../lib/store.js';
@@ -66,7 +67,7 @@ const morph = `t-${type}-${item.slug}`;
   <main class="page" id="main">
     <nav class="topbar crumbs" aria-label="Breadcrumb">
       <ol>
-        <li><a href="/" data-magnetic>{profile.name}</a></li>
+        <li><a href="/" data-magnetic><Logo size={20} />{profile.name}</a></li>
         <li><a href={isPost ? '/blog' : crumbs[1].path}>{isPost ? 'Blog' : cfg.plural}</a></li>
       </ol>
       {Astro.locals.owner && <a href={`/admin/${type}/${item.id}`}>Edit</a>}

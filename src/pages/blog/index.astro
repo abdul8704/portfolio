@@ -1,5 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
+import Logo from '../../components/Logo.astro';
 import { listItems } from '../../lib/store.js';
 import { siteContext, fmtDate, websiteLd, personLd, crumbsLd, pageLd } from '../../lib/seo.js';
 import { readingMinutes } from '../../lib/markdown.js';
@@ -19,7 +20,7 @@ const graph = [
 ---
 <Base profile={profile} owner={!!Astro.locals.owner} graph={graph} seo={{ title, description, path: '/blog', origin, image: profile.ogImage, imageAlt: profile.ogImageAlt }}>
   <main class="page" id="main">
-    <nav class="topbar" aria-label="Breadcrumb"><a href="/" data-magnetic>← {profile.name}</a><span aria-current="page">Blog</span></nav>
+    <nav class="topbar" aria-label="Breadcrumb"><a href="/" data-magnetic><Logo size={22} />{profile.name}</a><span aria-current="page">Blog</span></nav>
     <h1>Notes</h1>
     <p class="lede">Things I'm learning about backends, systems and AI pipelines, written from first principles.</p>
     {posts.length === 0 ? (

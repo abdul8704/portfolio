@@ -72,6 +72,7 @@
 .socials { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); font: 500 var(--text-sm)/1 var(--font-mono); color: var(--content-secondary); }
 .socials a { display: inline-flex; align-items: center; min-height: 2rem; transition: color var(--t-fast); }
 .socials a:hover { color: var(--action); }
+.socials a.mail { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; line-height: 1.3; }
 
 /* ---------- content column ---------- */
 .content { padding: clamp(2.5rem, 7vh, 5rem) 0 var(--s-16); min-width: 0; }
@@ -236,6 +237,10 @@
 .post h3 .arrow { color: var(--content-secondary); transition: transform var(--t-base) var(--ease-standard), color var(--t-base); }
 .post:hover .arrow { color: var(--action); transform: translate(3px, -3px); }
 .post p { color: var(--content-soft); margin-top: var(--s-2); font-size: 0.97rem; }
+.more { margin-top: var(--s-6); }
+.logo { display: inline-block; flex: none; border-radius: 22%; }
+.topbar a:has(.logo), .crumbs a:has(.logo) { gap: var(--s-2); }
+.foot-id { display: inline-flex; align-items: center; gap: var(--s-2); }
 .empty { padding: var(--s-8); border-radius: var(--radius-lg); box-shadow: inset 0 0 0 1px var(--border-subtle); color: var(--content-secondary); }
 
 /* ---------- prose (markdown output) ---------- */

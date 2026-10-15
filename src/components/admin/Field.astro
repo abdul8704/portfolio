@@ -19,7 +19,7 @@ const show = (v) => {
 const val = show(value);
 const describedby = [f.help && `${id}-help`, error && `${id}-err`].filter(Boolean).join(' ') || undefined;
 const rows = f.rows ?? (f.type === 'paras' ? 8 : f.type === 'lines' || f.type === 'pairs' ? 5 : 4);
-const inputType = { email: 'email', url: 'url', date: 'date', month: 'month' }[f.type] || 'text';
+const inputType = { email: 'email', url: 'url', date: 'date', month: 'month', number: 'number' }[f.type] || 'text';
 const placeholder = { month: 'YYYY-MM', url: 'https://', pairs: 'GitHub | https://github.com/you', csv: 'one, two, three' }[f.type];
 ---
 <div class="field">

@@ -59,7 +59,7 @@ const viewerAttrs = { target: '_blank', rel: 'noopener', 'data-resume-viewer': '
     <div class="rail-foot" data-rail-rest>
       <div class="socials">
         {otherSocials.map((s) => <a href={s.href} {...ext(s.href)}>{s.label}</a>)}
-        {profile.email && <a href={`mailto:${profile.email}`}>Email</a>}
+        {profile.email && <a class="mail" href={`mailto:${profile.email}`}>{profile.email}</a>}
       </div>
     </div>
   )}

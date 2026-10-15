@@ -1,6 +1,7 @@
 ---
 import Admin from '../../layouts/Admin.astro';
 import Icon from '../../components/admin/Icon.astro';
+import Logo from '../../components/Logo.astro';
 import { checkLogin, createSession, isConfigured, lockedFor, recordFailure, clearFailures } from '../../lib/auth.js';
 import { clientIp, isHttps, safeNext } from '../../lib/http.js';
 
@@ -35,9 +36,9 @@ if (Astro.request.method === 'POST' && configured) {
 <Admin title="Sign in" bare>
   <div class="login">
     <div class="login-card">
-      <div class="a-brand"><i>A</i><span>Portfolio admin<small>Owner access only</small></span></div>
+      <div class="login-brand"><Logo size={48} /><span>Portfolio admin</span></div>
       <h1>Sign in</h1>
-      <p class="muted">Manage your portfolio content. This area is private.</p>
+      <p class="muted">Manage your portfolio content. This area is private, for the owner only.</p>
 
       {!configured ? (
         <div class="alert warn" style="margin-top:var(--s-6)" role="status">
