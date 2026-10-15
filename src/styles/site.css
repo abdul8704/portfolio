@@ -7,11 +7,11 @@
 /* ---------- shell + rail ---------- */
 .shell {
   display: grid;
-  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
-  gap: clamp(2rem, 6vw, 6rem);
-  max-width: 1160px;
+  grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 3rem);
+  padding: 0 clamp(0.75rem, 2vw, 1.5rem);
 }
 .rail {
   position: sticky; top: 0; align-self: start;
@@ -63,11 +63,11 @@
   font: 500 var(--text-caption)/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--content-secondary); margin-bottom: var(--s-3);
 }
-.stack dl { margin: 0; display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--s-2) var(--s-3); font-size: var(--text-sm); }
+.stack dl { margin: 0; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--s-2) var(--s-3); font-size: var(--text-sm); }
 .stack dt { color: var(--content-secondary); font-family: var(--font-mono); font-size: var(--text-caption); padding-top: 0.2rem; }
-.stack dd { margin: 0; color: var(--content-body); }
+.stack dd { margin: 0; color: var(--content-body); display: flex; flex-wrap: wrap; column-gap: 0.4em; row-gap: 0.1em; }
 .stack dd span { white-space: nowrap; }
-.stack dd span + span::before { content: ' · '; color: var(--content-secondary); white-space: pre; }
+.stack dd span:not(:last-child)::after { content: '·'; margin-left: 0.4em; color: var(--content-secondary); }
 
 .socials { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); font: 500 var(--text-sm)/1 var(--font-mono); color: var(--content-secondary); }
 .socials a { display: inline-flex; align-items: center; min-height: 2rem; transition: color var(--t-fast); }
@@ -380,8 +380,8 @@ body::before {
 .br-leader.on, .br-leader.hot { stroke: var(--action-line); }
 .branch.hovering .br-bar:not(.hot), .branch.hovering .br-curve:not(.hot), .branch.hovering .br-leader:not(.hot), .branch.hovering .br-label:not(.hot) { opacity: 0.35; }
 .br-label {
-  position: absolute; right: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px;
-  padding: 0 var(--s-3); border-radius: var(--radius-md); border: 1px solid transparent; min-width: 0;
+  position: absolute; right: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  padding: var(--s-2) var(--s-4); border-radius: var(--radius-md); border: 1px solid transparent; min-width: 0;
   transition: background var(--t-base), border-color var(--t-base), opacity var(--t-base);
 }
 .br-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

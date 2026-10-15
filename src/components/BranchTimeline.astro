@@ -5,8 +5,8 @@
 import { layoutTimeline, entryPeriod } from '../lib/timeline.js';
 
 const { items } = Astro.props;
-const LABEL_H = 66;
-const L = layoutTimeline(items, { labelH: LABEL_H });
+const LABEL_H = 84;
+const L = layoutTimeline(items, { labelH: LABEL_H, labelGap: 14 });
 
 const AXIS = 46; // year labels
 const LANE = 30; // gap between lanes
